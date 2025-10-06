@@ -1,4 +1,4 @@
-// app/page.tsx
+// app/setSeat/SeatsClient.tsx
 'use client'; // <- これがないとブラウザ専用のフック(useState等)が使えません
 
 import React, { useEffect, useState } from 'react';
