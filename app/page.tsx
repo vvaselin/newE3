@@ -40,7 +40,6 @@ export default function Page() {
           <Link
             href="/setSeat"
             aria-label="座席選択ページへ"
-            // 一時的に明示的な色で見えるようにする（表示確認用）
             className="block rounded-xl border border-black/10 dark:border-white/15 bg-foreground text-background px-4 py-3 text-center font-semibold hover:opacity-90"
           >
             座席選択・解除画面
