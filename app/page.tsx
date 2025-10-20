@@ -12,7 +12,7 @@ export default function Page() {
         <h1 id="title" className="text-xl font-bold">茨城大学日立食堂</h1>
         <p className="mt-1 text-sm text-foreground/70">スタートメニュー</p>
 
-        <div className="mt-5 grid gap-3">
+        <div className="mt-5 grid gap-4">
           <Link
             href="/congestion"
             aria-label="混雑状況ページへ"
@@ -36,6 +36,15 @@ export default function Page() {
           >
             QRコード読み取り
           </Link>
+
+          <Link
+            href="/setSeat"
+            aria-label="座席選択ページへ"
+            className="block rounded-xl border border-black/10 dark:border-white/15 bg-foreground text-background px-4 py-3 text-center font-semibold hover:opacity-90"
+          >
+            座席選択・解除画面
+          </Link>
+
         </div>
       </main>
     </div>
