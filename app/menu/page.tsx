@@ -1,7 +1,5 @@
-import fs from 'fs/promises';
-import path from 'path';
-import Papa from 'papaparse';
 import MenuPageClient from './MenuPageClient';
+import {supabase} from "@/supabase-client";
 
 // メニューアイテムの型定義
 export interface MenuItem {
@@ -12,23 +10,17 @@ export interface MenuItem {
 }
 
 async function getMenuItems(): Promise<MenuItem[]> {
-  const filePath = path.join(process.cwd(), 'data', 'menu.csv');
-  const csvFile = await fs.readFile(filePath, 'utf-8');
+  const { data: foods, error } = await supabase
+    .from('foods')
+    .select('*')
+    .order('id', { ascending: true });
 
-  return new Promise((resolve) => {
-    Papa.parse(csvFile, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const data = results.data as any[];
-        const menuItems: MenuItem[] = data.map(item => ({
-          ...item,
-          price: Number(item.price),
-        }));
-        resolve(menuItems);
-      },
-    });
-  });
+   if (error) {
+    console.error('Error fetching menu items:', error);
+    return []; 
+  }
+
+  return foods || []; 
 }
 
 export default async function MenuPage() {
