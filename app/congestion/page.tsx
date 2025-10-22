@@ -2,9 +2,28 @@
 
 import { Box, Heading, Text } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
+import { supabase } from "@/supabase-client";
+
+export interface Seat {
+  id: number;
+  seated_at: Date;
+  status: number;
+}
+
+async function getSeats(): Promise<Seat[]> {
+  const { data, error } = await supabase
+    .from('seats')
+    .select('*')
+    .order('id', { ascending: true });
+  if (error) {
+    console.error('Error fetching seats:', error);
+    return [];
+  }
+  return data || [];
+}
 
 // 席数の指定
-const SEATS_NUM = 20;
+const SEATS_NUM = 10;
 
 // 数字と色の対応
 const COLOR_STATUS = {
