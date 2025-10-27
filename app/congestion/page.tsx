@@ -125,7 +125,7 @@ export default function congestion() {
   useEffect(() => {
     const interval = setInterval(() => {
       updateAllSeatStatuses();
-    }, 30 * 1000); // 30秒 = 30 * 1000ミリ秒
+    }, 1 * 1000); // 30秒 = 30 * 1000ミリ秒
 
     return () => clearInterval(interval);
   }, []);
