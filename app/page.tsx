@@ -42,7 +42,6 @@ export default function Page() {
           >
             QRコード読み取り
           </Link>
-
           <Link
             href="/setSeat"
             aria-label="座席選択ページへ"
