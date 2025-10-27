@@ -31,17 +31,38 @@ export default function LoginPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setMessage('')
-    const { error } = await supabase.auth.signUp({
+    
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        // 確認メールのリンク先URL（オプション）
         emailRedirectTo: `${location.origin}/auth/callback`,
       },
     })
 
-    if (error) {
-      setMessage('エラー: ' + error.message)
+    if (authError) {
+      setMessage('エラー: ' + authError.message)
+      return
+    }
+
+    if (!authData.user) {
+      setMessage('エラー: ユーザーが作成されませんでした。')
+      return
+    }
+
+    // サインアップ成功時、profilesテーブルにも挿入
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({ 
+        id: authData.user.id,  // 認証ユーザーと同じIDを使用
+        email: authData.user.email,
+        role: 'user' // デフォルトロール
+      })
+
+    if (profileError) {
+      // プロファイル作成失敗（例: RLS違反など）
+      setMessage('エラー (Profile): ' + profileError.message)
+      // ここで auth.deleteUser などでロールバックする方が親切かもしれない
     } else {
       setMessage('確認メールを送信しました。メール内のリンクをクリックしてください。')
     }
