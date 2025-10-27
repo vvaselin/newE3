@@ -12,9 +12,10 @@ import LoginModal from './LoginModal'
 export default function Header() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+
   const supabase = createClient()
   const router = useRouter()
-
+  const [userRole, setUserRole] = useState<string | null>(null)
   const toast = useToast()
   const searchParams = useSearchParams()
 
@@ -45,19 +46,46 @@ export default function Header() {
 
   useEffect(() => {
     // ページ読み込み時に現在のユーザーを取得
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
+    const fetchUserAndRole = async (sessionUser: User | null) => {
+      if (sessionUser) {
+        // 1. ログインユーザー情報をセット
+        setUser(sessionUser)
+        
+        // 2. profilesテーブルからroleを取得
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', sessionUser.id)
+          .single()
+
+        if (error) {
+          console.error('ロールの取得に失敗しました:', error)
+          setUserRole(null)
+        } else if (profile) {
+          // 3. 取得したroleをStateにセット
+          setUserRole(profile.role)
+        }
+      } else {
+        // ログアウトした場合
+        setUser(null)
+        setUserRole(null)
+      }
       setLoading(false)
     }
 
-    fetchUser()
+    // ページ読み込み時に現在のユーザーとロールを取得
+    const initialize = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      await fetchUserAndRole(user)
+    }
+    
+    initialize()
 
     // 認証状態の変更（ログイン・ログアウト時）を監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setUser(session?.user ?? null)
-        setLoading(false)
+        // ログイン/ログアウトが発生したらユーザーとロールを再取得
+        fetchUserAndRole(session?.user ?? null)
       }
     )
 
@@ -65,7 +93,7 @@ export default function Header() {
     return () => {
       subscription?.unsubscribe()
     }
-  }, [supabase.auth])
+  }, [supabase, supabase.auth])
 
   // ログアウト処理
   const handleLogout = async () => {
@@ -107,9 +135,11 @@ export default function Header() {
                 <Text fontSize="sm" display={{ base: 'none', md: 'block' }}>
                   {user.email}
                 </Text>
-                <Button as={Link} href="/admin" colorScheme="teal" size="sm">
-                  管理者ページへ
-                </Button>
+                {userRole === 'admin' && (
+                  <Button as={Link} href="/admin" colorScheme="teal" size="sm">
+                    管理者ページへ
+                  </Button>
+                )}
                 <Button onClick={handleLogout} colorScheme="gray" size="sm">
                   ログアウト
                 </Button>
