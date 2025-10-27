@@ -1,7 +1,7 @@
 'use client';
 
 import QrcodeReaderComponent from './QrcodeReaderComponent';
-import { QrCode } from 'lucide-react'; // おしゃれなQRアイコン
+import { QrCode } from 'lucide-react';
 
 export default function QRPage() {
   return (
