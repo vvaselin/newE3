@@ -65,7 +65,7 @@ export default function Header() {
   // ログアウト処理
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.push('/') // トップページに戻る
+    // router.push('/') // トップページに戻る
     router.refresh()
   }
 
@@ -111,7 +111,7 @@ export default function Header() {
           ) : (
             // 未ログインの状態
             <Button as={Link} href="/login" colorScheme="blue" size="sm">
-              管理者ログイン
+              ログイン
             </Button>
           )}
         </Box>
