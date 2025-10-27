@@ -55,8 +55,7 @@ export default function LoginPage() {
       .from('profiles')
       .insert({ 
         id: authData.user.id,  // 認証ユーザーと同じIDを使用
-        email: authData.user.email,
-        role: 'user' // デフォルトロール
+        email: authData.user.email
       })
 
     if (profileError) {
