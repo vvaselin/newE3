@@ -68,6 +68,8 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
             ))}
           </Grid>
         </Box>
+
+        
       </HStack>
     </Container>
   );
