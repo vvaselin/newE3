@@ -34,6 +34,7 @@ export async function middleware(request: NextRequest) {
     if (error || !profile || profile.role !== 'admin') {
       console.warn('管理者アクセスが拒否されました:', user.email, 'ロール:', profile?.role)
       url.pathname = '/' // トップページにリダイレクト
+      url.searchParams.set('auth_error', 'true')
       return NextResponse.redirect(url)
     }
   }
