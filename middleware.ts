@@ -8,6 +8,8 @@ export async function middleware(request: NextRequest) {
 
   const url = request.nextUrl.clone()
 
+  console.log(`[MIDDLEWARE RUNNING] Path: ${request.nextUrl.pathname}`)
+
   // /admin ページへのアクセス制御
   if (request.nextUrl.pathname.startsWith('/admin')) {
     if (!user) {
@@ -22,9 +24,17 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
+    console.log('MIDDLEWARE ADMIN CHECK:', { 
+      userId: user.id, 
+      userEmail: user.email, 
+      profileData: profile, // 実際に取得したプロファイル
+      errorData: error      // 発生したエラー
+    })
+
     if (error || !profile || profile.role !== 'admin') {
       console.warn('管理者アクセスが拒否されました:', user.email, 'ロール:', profile?.role)
       url.pathname = '/' // トップページにリダイレクト
+      url.searchParams.set('auth_error', 'true')
       return NextResponse.redirect(url)
     }
   }
