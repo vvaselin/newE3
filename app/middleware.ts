@@ -23,8 +23,7 @@ export async function middleware(request: NextRequest) {
       .single()
 
     if (error || !profile || profile.role !== 'admin') {
-      // 管理者でない、またはプロファイルの取得に失敗した場合
-      console.warn('Admin access denied for user:', user.email)
+      console.warn('管理者アクセスが拒否されました:', user.email, 'ロール:', profile?.role)
       url.pathname = '/' // トップページにリダイレクト
       return NextResponse.redirect(url)
     }
