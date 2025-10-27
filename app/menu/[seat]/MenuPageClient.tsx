@@ -88,7 +88,7 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
           <Grid templateColumns="repeat(auto-fill, minmax(250px, 1fr))" gap={6}>
             {menuItems.map((item) => (
               <GridItem key={item.id} borderWidth="1px" borderRadius="lg" overflow="hidden" boxShadow="sm">
-                <Image src={item.image} alt={item.name} w="100%" h="200px" objectFit="cover" />
+                <Image src={"../"+item.image} alt={item.name} w="100%" h="200px" objectFit="cover" />
                 <Box p={4}>
                   <Text fontWeight="bold" fontSize="lg" noOfLines={1}>{item.name}</Text>
                   <Text mt={2} fontSize="xl" color="gray.800">¥{item.price.toLocaleString()}</Text>
