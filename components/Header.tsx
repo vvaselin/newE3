@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Box, Button, Flex, Spacer, Text } from '@chakra-ui/react'
+import { Box, Button, Flex, Spacer, Text, useToast } from '@chakra-ui/react'
 import { createClient } from '@/utils/supabase/client'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
 
 export default function Header() {
@@ -12,6 +12,31 @@ export default function Header() {
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const router = useRouter()
+
+  const toast = useToast()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    // URLクエリから 'auth_error' を取得
+    const authError = searchParams.get('auth_error')
+
+    if (authError) {
+      // auth_error=true があればトーストを表示
+      toast({
+        title: 'アクセスが拒否されました',
+        description: '管理者権限がありません。',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top',
+      })
+      
+      // トースト表示後、URLからクエリパラメータを削除
+      // (リロードしても再表示されないようにする)
+      const newUrl = window.location.pathname
+      window.history.replaceState(null, '', newUrl)
+    }
+  }, [searchParams, toast]) // ページ読み込み時（searchParams変更時）に実行
 
   useEffect(() => {
     // ページ読み込み時に現在のユーザーを取得
