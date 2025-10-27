@@ -3,12 +3,42 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import QrcodeReader from './QrcodeReader';
+import { supabase } from '@/supabase-client';
+
+// 席数の指定
+const SEATS_NUM = 10;
+
+export interface Seat {
+  id: number;
+  seated_at: Date;
+  status: number;
+}
 
 export default function QrcodeReaderComponent() {
   const [mounted, setMounted] = useState(false);
   const [scannedTime, setScannedTime] = useState<Date | null>(null);
   const [scannedResult, setScannedResult] = useState('');
   const router = useRouter();
+
+  // 座席情報を追加
+  async function addSeats(seatId: number) {
+    await supabase.from('seats').insert([{
+      id: seatId,
+      seated_at: new Date(new Date().toISOString()),
+      status: 1
+    }])
+  }
+
+  // 座席登録
+  const SeatRegister = async (seatId: number) => {
+    if (seatId >= 1 && seatId <= SEATS_NUM) {
+      await addSeats(seatId);
+    } else {
+      alert('有効な席番号を入力してください');
+      return;
+    }
+  }
+
 
   useEffect(() => {
     setMounted(true);
@@ -21,6 +51,7 @@ export default function QrcodeReaderComponent() {
     // QRコードから座席番号を抽出（数字のみ）
     const seatNumber = result.match(/\d+/)?.[0];
     if (seatNumber) {
+      SeatRegister(Number(seatNumber));
       console.log(`座席番号: ${seatNumber}`);
       router.push(`/menu/${seatNumber}`);
     } else {
