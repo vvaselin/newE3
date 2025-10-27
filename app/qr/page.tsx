@@ -27,7 +27,7 @@ export default function QRPage() {
 
         {/* フッターメッセージ */}
         <p className="text-gray-400 text-xs mt-6">
-          読み取りが完了すると自動的にページが遷移します
+          読み取りが完了すると自動的にメニュー画面へ遷移します
         </p>
       </div>
     </main>
