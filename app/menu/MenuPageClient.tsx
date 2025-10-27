@@ -100,43 +100,6 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
             ))}
           </Grid>
         </Box>
-
-        {/* 注文カートセクション */}
-        <Box flex="1" p={6} borderWidth="1px" borderRadius="lg" position="sticky" top="2rem" boxShadow="md">
-          <Heading as="h2" size="lg" mb={4}>
-            注文カート
-          </Heading>
-          <Divider />
-          {cart.length === 0 ? (
-            <Text mt={4} color="gray.500">カートは空です。</Text>
-          ) : (
-            <>
-              <VStack spacing={4} mt={4} align="stretch">
-                {cart.map((item) => (
-                  <HStack key={item.id} justify="space-between" align="center">
-                    <Box>
-                      <Text fontWeight="bold">{item.name}</Text>
-                      <Text fontSize="sm">¥{item.price.toLocaleString()}</Text>
-                    </Box>
-                    <HStack>
-                      <Button size="sm" onClick={() => removeFromCart(item.id)}>-</Button>
-                      <Text w="2rem" textAlign="center">{item.quantity}</Text>
-                      <Button size="sm" onClick={() => addToCart(item)}>+</Button>
-                    </HStack>
-                  </HStack>
-                ))}
-              </VStack>
-              <Divider my={4} />
-              <HStack justify="space-between" mt={4}>
-                <Text fontWeight="bold" fontSize="lg">合計金額</Text>
-                <Text fontWeight="bold" fontSize="lg">¥{calculateTotal().toLocaleString()}</Text>
-              </HStack>
-              <Button colorScheme="green" mt={6} w="full" size="lg">
-                注文する
-              </Button>
-            </>
-          )}
-        </Box>
       </HStack>
     </Container>
   );
