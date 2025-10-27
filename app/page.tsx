@@ -17,45 +17,53 @@ export default function Page() { // ページコンポーネント
       >
 
         <h1 id="title" className="font-bold" style={{ fontSize: '1.5em' }}>
-          <span className="inline-block bg-[#FFFFBF] rounded-md px-3 py-1">茨城大学日立食堂</span>
+          <span className="inline-block bg-[#FFFFBF] rounded-lg px-3 py-1">茨城大学日立食堂</span>
         </h1>
         <p className="mt-1 text-sm text-foreground/70">スタートメニュー</p>
 
-        <div className="mt-5 grid gap-4">
+  <div className="mt-5 grid grid-cols-2 gap-4">
           <Link
             href="/congestion"
             aria-label="混雑状況ページへ"
-            className="flex items-center gap-3 rounded-xl border border-black/10 dark:border-white/15 bg-foreground text-background px-4 py-3 font-semibold hover:opacity-90"
+            className="block rounded-xl border border-black/10 dark:border-white/15 bg-foreground text-background px-4 py-3 font-semibold hover:opacity-90"
           >
-            <img src="/images/icon1.svg" alt="混雑アイコン" className="w-5 h-5" />
-            <span>混雑状況</span>
+            <div className="flex flex-col items-center gap-2">
+              <span>混雑状況</span>
+              <img src="/images/conzatsu.png" alt="混雑アイコン" className="w-10 h-10 object-contain" />
+            </div>
           </Link>
 
           <Link
             href="/menu"
             aria-label="商品一覧ページへ"
-            className="flex items-center gap-3 rounded-xl border border-black/10 dark:border-white/15 bg-background px-4 py-3 font-semibold hover:bg-black/[.05] dark:hover:bg-white/[.06]"
+            className="block rounded-xl border border-black/10 dark:border-white/15 bg-background px-4 py-3 font-semibold hover:bg-black/[.05] dark:hover:bg-white/[.06]"
           >
-            <img src="/images/icon2.svg" alt="メニューアイコン" className="w-5 h-5" />
-            <span>商品一覧</span>
+            <div className="flex flex-col items-center gap-2">
+              <span>商品一覧</span>
+              <img src="/images/eat.png" alt="メニューアイコン" className="w-10 h-10 object-contain" />
+            </div>
           </Link>
 
           <Link
             href="/qr"
             aria-label="QRコード読み取りページへ"
-            className="flex items-center gap-3 rounded-xl border border-black/10 dark:border-white/15 bg-background px-4 py-3 font-semibold hover:bg-black/[.05] dark:hover:bg-white/[.06]"
+            className="block rounded-xl border border-black/10 dark:border-white/15 bg-background px-4 py-3 font-semibold hover:bg-black/[.05] dark:hover:bg-white/[.06]"
           >
-            <img src="/images/icon3.svg" alt="QRアイコン" className="w-5 h-5" />
-            <span>QRコード読み取り</span>
+            <div className="flex flex-col items-center gap-2">
+              <span>QRコード読み取り</span>
+              <img src="/images/qrcode.png" alt="QRアイコン" className="w-10 h-10 object-contain" />
+            </div>
           </Link>
 
           <Link
             href="/setSeat"
             aria-label="座席選択ページへ"
-            className="flex items-center gap-3 rounded-xl border border-black/10 dark:border-white/15 bg-foreground text-background px-4 py-3 font-semibold hover:opacity-90"
+            className="block rounded-xl border border-black/10 dark:border-white/15 bg-foreground text-background px-4 py-3 font-semibold hover:opacity-90"
           >
-            <img src="/images/icon4.svg" alt="座席アイコン" className="w-5 h-5" />
-            <span>座席選択・解除画面</span>
+            <div className="flex flex-col items-center gap-2">
+              <span>座席選択・解除画面</span>
+              <img src="/images/zaseki.png" alt="座席アイコン" className="w-10 h-10 object-contain" />
+            </div>
           </Link>
         </div>
 
