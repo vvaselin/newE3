@@ -14,6 +14,7 @@ return (
       		>
         	---トップへ戻る---
       		</Link>
-			<SeatsClient />
-		</main>
-	);
+				<SeatsClient />
+			</main>
+		);
+	}
