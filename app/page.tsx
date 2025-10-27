@@ -1,7 +1,12 @@
 // app/page.tsx
 import Link from "next/link";
+import AdminButton from "@/components/AdminButton";
 
 export default function Page() {
+  const handleAdminClick = () => {
+    console.log("Admin button clicked");
+  }
+
   return (
     <div className="grid min-h-dvh place-items-center p-5">
       <main
@@ -9,6 +14,7 @@ export default function Page() {
         role="region"
         aria-labelledby="title"
       >
+
         <h1 id="title" className="text-xl font-bold">茨城大学日立食堂</h1>
         <p className="mt-1 text-sm text-foreground/70">スタートメニュー</p>
 
