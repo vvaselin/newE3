@@ -5,58 +5,82 @@ import Select from 'react-select';
 
 const qrcodeRegionId = 'html5qr-code-full-region';
 
-export default function QrcodeReader({ onScanSuccess, onScanFailure }: { onScanSuccess: any; onScanFailure: any }) {
-  const [mounted, setMounted] = useState(false); // クライアントマウント済みフラグ
+export default function QrcodeReader({
+  onScanSuccess,
+  onScanFailure,
+}: {
+  onScanSuccess: (result: string) => void;
+  onScanFailure: (error: any) => void;
+}) {
+  const [mounted, setMounted] = useState(false);
   const [selectedCameraId, setSelectedCameraId] = useState('');
-  const [cameras, setCameras] = useState<any[]>([]);
+  const [cameras, setCameras] = useState<{ value: string; label: string }[]>([]);
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const config = { fps: 1, qrbox: { width: 400, height: 400 } };
+
+  const config = { fps: 10, qrbox: { width: 300, height: 300 } };
 
   useEffect(() => {
-    setMounted(true); // クライアントでマウントされたことを検知
+    setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!mounted) return; // SSR 時は何もしない
-    if (!onScanSuccess || !onScanFailure) throw 'required callback';
+    if (!mounted) return;
+    if (!onScanSuccess || !onScanFailure) throw new Error('Callback is required.');
 
-    // DOM 内の古い要素をクリア
     const container = document.getElementById(qrcodeRegionId);
     if (container) while (container.firstChild) container.removeChild(container.firstChild);
 
     if (!scannerRef.current) {
       scannerRef.current = new Html5Qrcode(qrcodeRegionId);
 
-      // カメラ取得と自動スキャン
       Html5Qrcode.getCameras()
-        .then((cameraList) => {
-          if (cameraList && cameraList.length) {
-            const formattedCameras = cameraList.map((cam) => ({
+        .then(async (cameraList) => {
+          if (cameraList && cameraList.length > 0) {
+            const formatted = cameraList.map((cam) => ({
               value: cam.id,
               label: cam.label || `Camera ${cam.id}`,
             }));
-            setCameras(formattedCameras);
-            const defaultId = formattedCameras[0].value;
-            setSelectedCameraId(defaultId);
-            scannerRef.current?.start(defaultId, config, onScanSuccess, onScanFailure);
+            setCameras(formatted);
+
+            const defaultCam = formatted[0].value;
+            setSelectedCameraId(defaultCam);
+
+            try {
+              await scannerRef.current?.start(defaultCam, config, onScanSuccess, onScanFailure);
+            } catch (err) {
+              console.error('スキャン開始エラー:', err);
+            }
           } else {
-            console.warn('カメラが見つかりませんでした');
+            console.warn('カメラが見つかりません');
           }
         })
-        .catch((err) => console.error(err));
+        .catch((err) => console.error('カメラ取得エラー:', err));
     }
 
+    // 🔹 コンポーネントが破棄されるときのクリーンアップ
     return () => {
-      scannerRef.current?.stop().finally(() => scannerRef.current?.clear());
+      const stopAndClear = async () => {
+        if (scannerRef.current) {
+          try {
+            if (scannerRef.current.isScanning) {
+              await scannerRef.current.stop(); // ← stopが完了してからclear
+            }
+            await scannerRef.current.clear();
+          } catch (err) {
+            console.warn('Cleanup skipped:', err);
+          }
+        }
+      };
+      stopAndClear();
     };
   }, [mounted, onScanSuccess, onScanFailure]);
 
-  if (!mounted) return null; // SSR では何も描画しない
+  if (!mounted) return null;
 
   return (
     <div className="container mx-auto">
       <div className="max-w-screen-lg" id={qrcodeRegionId} />
-      <div>
+      <div className="mt-4">
         {cameras.length > 0 ? (
           <Select
             name="camera"
@@ -64,17 +88,22 @@ export default function QrcodeReader({ onScanSuccess, onScanFailure }: { onScanS
             value={cameras.find((c) => c.value === selectedCameraId)}
             placeholder="カメラを選択"
             onChange={async (camera) => {
-              if (!scannerRef.current) return;
-              await scannerRef.current.stop();
-              setSelectedCameraId(camera.value);
-              await scannerRef.current.start(camera.value, config, onScanSuccess, onScanFailure);
+              if (!camera || !scannerRef.current) return;
+              try {
+                if (scannerRef.current.isScanning) {
+                  await scannerRef.current.stop();
+                }
+                setSelectedCameraId(camera.value);
+                await scannerRef.current.start(camera.value, config, onScanSuccess, onScanFailure);
+              } catch (err) {
+                console.error('カメラ切替エラー:', err);
+              }
             }}
           />
         ) : (
-          <p>カメラがありません</p>
+          <p>カメラが見つかりません。</p>
         )}
       </div>
     </div>
   );
 }
-
