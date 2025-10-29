@@ -56,12 +56,12 @@ export default function Page() { // ページコンポーネント
           </Link>
 
           <Link
-            href="/setSeat"
-            aria-label="座席選択ページへ"
+            href="/orderState"
+            aria-label="注文状態表示ページへ"
             className="block rounded-xl border border-black/10 dark:border-white/15 bg-foreground text-background px-4 py-3 font-semibold hover:opacity-90"
           >
             <div className="flex flex-col items-center gap-2">
-              <span>座席選択・解除画面</span>
+              <span>注文状況の確認</span>
               <img src="/images/zaseki.png" alt="座席アイコン" className="w-10 h-10 object-contain" />
             </div>
           </Link>
