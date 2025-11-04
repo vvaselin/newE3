@@ -86,7 +86,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         id: authData.user.id,
         email: authData.user.email,
         role: 'user', // デフォルトロール
-        point: 1000   // デフォルトポイント
+        point: 5000   // デフォルトポイント
       })
 
     if (profileError) {
