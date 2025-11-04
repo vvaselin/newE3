@@ -60,9 +60,7 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
                 <Box p={4}>
                   <Text fontWeight="bold" fontSize="lg" noOfLines={1}>{item.name}</Text>
                   <Text mt={2} fontSize="xl" color="gray.800">¥{item.price.toLocaleString()}</Text>
-                  <Button mt={4} colorScheme="teal" onClick={() => addToCart(item)} w="full">
-                    カートに追加
-                  </Button>
+                  
                 </Box>
               </GridItem>
             ))}
