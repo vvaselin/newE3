@@ -1,16 +1,29 @@
 'use client';
 
 import { Box, Text, Button } from "@chakra-ui/react";
-import { supabase } from "@/supabase-client";
+import { createClient } from '@/utils/supabase/client';
 import { useRouter } from "next/navigation";
 
 export default function MealCompletionPage() {
-    const router = useRouter();
-    // 座席情報を削除
-  async function deleteSeats(seatId: number) {
-    await supabase.from('seats').delete().eq('id', seatId);
+  const router = useRouter();
+  const supabase = createClient();
+
+  // ユーザーIDを取得
+  async function getUserId(): Promise<string | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('ログインが必要です');
+      return null;
+    }
+    return user.id;
+  }
+  // 食事完了ボタン
+  async function mealCompletionButton() {
+    const userId = await getUserId();
+    await supabase.from('seats').delete().eq('user_id', userId);
     router.push('/');
   }
+
 
   return (
     <Box 
@@ -30,7 +43,7 @@ export default function MealCompletionPage() {
           ご協力お願いします。
         </Text>
         <Button 
-          onClick={() => deleteSeats(1)}
+          onClick={() => mealCompletionButton()}
           marginTop={4}
           marginBottom={4}
           display="block"

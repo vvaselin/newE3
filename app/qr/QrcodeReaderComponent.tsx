@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import QrcodeReader from './QrcodeReader';
-import { supabase } from '@/supabase-client';
+import { createClient } from '@/utils/supabase/client';
 
 // 席数の指定
 const SEATS_NUM = 10;
@@ -19,13 +19,26 @@ export default function QrcodeReaderComponent() {
   const [scannedTime, setScannedTime] = useState<Date | null>(null);
   const [scannedResult, setScannedResult] = useState('');
   const router = useRouter();
+  const supabase = createClient();
 
+  // ユーザーIDを取得
+  async function getUserId(): Promise<string | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('ログインが必要です');
+      return null;
+    }
+    return user.id;
+  }
+  
   // 座席情報を追加
   async function addSeats(seatId: number) {
+    const userId = await getUserId();
     await supabase.from('seats').insert([{
       id: seatId,
       seated_at: new Date(new Date().toISOString()),
-      status: 1
+      status: 1,
+      user_id: userId
     }])
   }
 
