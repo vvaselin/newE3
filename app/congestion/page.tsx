@@ -50,6 +50,7 @@ export default function congestion() {
   // 座席情報を追加
   async function addSeats(seatId: number) {
     const userId = await getUserId();
+    if (!userId) return;
     await supabase.from('seats').insert([{
       id: seatId,
       seated_at: new Date(new Date().toISOString()),
@@ -60,7 +61,9 @@ export default function congestion() {
 
   // 座席情報を削除
   async function deleteSeats(seatId: number) {
-    await supabase.from('seats').delete().eq('id', seatId);
+    const userId = await getUserId();
+    if (!userId) return;
+    await supabase.from('seats').delete().eq('id', seatId).eq('user_id', userId);
   }
 
   // 座席登録

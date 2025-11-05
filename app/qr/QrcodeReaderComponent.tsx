@@ -12,6 +12,7 @@ export interface Seat {
   id: number;
   seated_at: Date;
   status: number;
+  user_id: string;
 }
 
 export default function QrcodeReaderComponent() {

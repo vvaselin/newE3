@@ -3,6 +3,7 @@
 import { Box, Text, Button } from "@chakra-ui/react";
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function MealCompletionPage() {
   const router = useRouter();
@@ -20,10 +21,17 @@ export default function MealCompletionPage() {
   // 食事完了ボタン
   async function mealCompletionButton() {
     const userId = await getUserId();
+    if (!userId) return;
     await supabase.from('seats').delete().eq('user_id', userId);
     router.push('/');
   }
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      alert('食事がお済みになりましたら、食事完了ボタンを押してください');
+    }, 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <Box 
