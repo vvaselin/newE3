@@ -2,7 +2,7 @@
 
 import { Box, Heading, Text } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
-import { supabase } from "@/supabase-client";
+import { createClient } from "@/utils/supabase/client";
 
 // 席数の指定
 const SEATS_NUM = 10;
@@ -19,9 +19,20 @@ export interface Seat {
   id: number;
   seated_at: Date;
   status: number;
+  user_id: string;
 }
 
 export default function congestion() {
+  const supabase = createClient();
+  // ユーザーIDを取得
+  async function getUserId(): Promise<string | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert('ログインが必要です');
+      return null;
+    }
+    return user.id;
+  }
   // 座席情報を管理
   const [seats, setSeats] = useState<Seat[]>([]);
   // 座席情報を取得
@@ -38,10 +49,12 @@ export default function congestion() {
 
   // 座席情報を追加
   async function addSeats(seatId: number) {
+    const userId = await getUserId();
     await supabase.from('seats').insert([{
       id: seatId,
       seated_at: new Date(new Date().toISOString()),
-      status: 1
+      status: 1,
+      user_id: userId
     }])
   }
 
