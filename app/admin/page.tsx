@@ -2,17 +2,34 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import LogoutButton from './LogoutButton'
 import Link from 'next/link'
-import { Button, Box, Heading, Divider } from '@chakra-ui/react' // ◀ Box, Heading, Divider をインポート
-import OrderState from '../orderState/OrderState' // ◀ 注文状況コンポーネントをインポート
+import { Button, Box } from '@chakra-ui/react'
+import SimpleOrderList from './SimpleOrderList' // ◀ 新しいコンポーネントをインポート
+
+// サーバーサイドで注文データを取得する関数
+async function getOrders() {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('orders')
+    .select('seat_number, paid_at') // 必要なカラムのみ取得
+    .order('seat_number', { ascending: true }) // 席番号順に取得
+
+  if (error) {
+    console.error('Error fetching orders for admin:', error.message)
+    return []
+  }
+  return data || []
+}
 
 export default async function AdminPage() {
   const supabase = await createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
     redirect('/login')
   }
+
+  // サーバーサイドで初期データを取得
+  const initialOrders = await getOrders()
 
   return (
     <div style={{ padding: 40 }}>
@@ -26,11 +43,17 @@ export default async function AdminPage() {
 
       <LogoutButton />
 
+      {/* ▼ 
+Order Status Section 
+▼ */}
       <Box mt={10}>
-        <Heading size="lg">リアルタイム注文状況</Heading>
-        <Divider my={4} />
-        <OrderState />
+        {/* SimpleOrderList を呼び出し、サーバーデータを渡す 
+*/}
+        <SimpleOrderList initialOrders={initialOrders} />
       </Box>
+      {/* ▲ 
+Order Status Section 
+▲ */}
     </div>
   )
 }
