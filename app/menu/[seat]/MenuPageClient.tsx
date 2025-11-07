@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import {
   Box, Button, Grid, GridItem, Heading, Image, Text,
   VStack, HStack, Divider, Container, useToast,
@@ -17,6 +17,9 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const toast = useToast();
   const router = useRouter();
+  const params = useParams();
+  // URL のパラメータから座席番号を取得できる場合は checkout に遷移するときに保存
+  const seatParam = (params as { seat?: string } | undefined)?.seat;
 
   const addToCart = (item: MenuItem) => {
     setCart((prev) => {
@@ -45,6 +48,14 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
       return;
     }
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart)); // カート保存
+    // 現在の URL パラメータに seat があれば保存しておく（ポイント決済で利用）
+    try {
+      if (seatParam) {
+        localStorage.setItem('newE3_seat', String(seatParam));
+      }
+    } catch {
+      // ignore storage errors
+    }
     router.push('/checkout'); // 決済方法選択へ
   };
 

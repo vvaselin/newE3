@@ -88,7 +88,7 @@ export default function OrderState() {
     }
   }, []);
 
-  // delete
+  // --- 注文削除 ---
   const deleteOrder = useCallback(async (seatNumber: number) => {
     try {
       const { error } = await supabase
@@ -154,9 +154,8 @@ export default function OrderState() {
           if (tNew > tExisting) map.set(n, r);
         };
 
-        // start with server latest (authoritative)
         for (const r of latest) pushIfNewer(r);
-        // then consider previous (cached/optimistic) and keep if newer
+        
         for (const r of prev) pushIfNewer(r);
 
         const merged = Array.from(map.values()).sort((a, b) => Number(a.seat_number) - Number(b.seat_number));

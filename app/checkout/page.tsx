@@ -35,16 +35,23 @@ export default function CheckoutMethodPage() {
 
   const total = useMemo(() => cart.reduce((s, it) => s + it.price * it.quantity, 0), [cart]);
 
-  const gotoPoints = () => {
-    if (cart.length === 0) {
+  // カートが空でも、未決済残額があれば遷移を許可する
+  const guardAndPush = (path: string) => {
+    const hasRemaining = Number.isFinite(remainingHint as number) && (remainingHint ?? 0) > 0;
+    if (cart.length === 0 && !hasRemaining) {
       toast({ title: 'カートが空です', status: 'warning', duration: 1500, isClosable: true, position: 'top' });
       return;
     }
-    router.push('/checkout/points');
+    router.push(path);
   };
 
-  const notImplemented = (label: string) =>
-    toast({ title: `${label} は未実装`, description: '今回はポイント払いをご利用ください', status: 'info', duration: 1800, isClosable: true, position: 'top' });
+  const gotoPoints      = () => guardAndPush('/checkout/points');
+  const gotoCredit      = () => guardAndPush('/checkout/credit');
+  const gotoQRPayment   = () => guardAndPush('/checkout/qrpayment');
+  const gotoCash        = () => guardAndPush('/checkout/cash');
+  const gotoTransit     = () => guardAndPush('/checkout/transit');
+  const gotoEmoney      = () => guardAndPush('/checkout/emoney');
+  const gotoWallet      = () => guardAndPush('/checkout/wallet');
 
   return (
     <Container maxW="container.lg" py={10}>
@@ -79,13 +86,19 @@ export default function CheckoutMethodPage() {
       <Box borderWidth="1px" borderRadius="lg" p={6} mt={6}>
         <Heading as="h2" size="md" mb={4}>支払い方法</Heading>
         <SimpleGrid columns={[1, 2]} spacing={4}>
-          <Button size="lg" variant="outline" onClick={() => notImplemented('現金')}>現金支払い</Button>
-          <Button size="lg" variant="outline" onClick={() => notImplemented('交通IC')}>交通IC系</Button>
-          <Button size="lg" variant="outline" onClick={() => notImplemented('電子決済')}>電子決済</Button>
-          <Button size="lg" colorScheme="teal" onClick={gotoPoints}>ポイント払いへ</Button>
+          <Button size="lg" colorScheme="teal" onClick={gotoCash}>現金支払い</Button>
+          <Button size="lg" colorScheme="teal" onClick={gotoTransit}>交通IC系</Button>
+          <Button size="lg" colorScheme="teal" onClick={gotoEmoney}>電子マネー</Button>
+          <Button size="lg" colorScheme="teal" onClick={gotoWallet}>ウォレット（Apple/Google）</Button>
+          <Button size="lg" colorScheme="teal" onClick={gotoPoints}>ポイント払い</Button>
+          <Button size="lg" colorScheme="teal" onClick={gotoCredit}>クレジット払い</Button>
+          <Button size="lg" colorScheme="teal" onClick={gotoQRPayment}>QRコード決済</Button>
         </SimpleGrid>
-        <Text fontSize="sm" color="gray.500" mt={3}>※ 他方式は後で実装。今回はポイント払いのみ。</Text>
+        <Text fontSize="sm" color="gray.500" mt={3}>
+          ※ ポイント／クレジット／QR は画面内で完了します。他方式は現在モック画面です。
+        </Text>
       </Box>
     </Container>
   );
 }
+
