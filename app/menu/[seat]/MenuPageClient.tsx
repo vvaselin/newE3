@@ -7,6 +7,7 @@ import {
   VStack, HStack, Divider, Container, useToast,
 } from '@chakra-ui/react';
 import type { MenuItem } from './page';
+import { createClient } from '@/utils/supabase/client'; 
 
 interface CartItem extends MenuItem { quantity: number; }
 interface MenuPageClientProps { menuItems: MenuItem[]; }
@@ -15,20 +16,57 @@ const CART_STORAGE_KEY = 'newE3_cart'; // カートだけ保存
 
 export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState<{[key: string]: boolean}>({}); 
   const toast = useToast();
   const router = useRouter();
   const params = useParams();
-  // URL のパラメータから座席番号を取得できる場合は checkout に遷移するときに保存
   const seatParam = (params as { seat?: string } | undefined)?.seat;
+  const supabase = createClient(); // ◀ Supabaseクライアントを初期化
 
-  const addToCart = (item: MenuItem) => {
-    setCart((prev) => {
-      const hit = prev.find((c) => c.id === item.id);
-      return hit
-        ? prev.map((c) => (c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c))
-        : [...prev, { ...item, quantity: 1 }];
-    });
-    toast({ title: `${item.name}をカートに追加しました。`, status: 'success', duration: 1500, isClosable: true, position: 'top' });
+  const addToCart = async (item: MenuItem) => { 
+    setLoadingItems(prev => ({ ...prev, [item.id]: true })); 
+
+    try {
+      // データベースに現在の 'display' 状態を問い合わせる
+      const { data, error } = await supabase
+        .from('foods')
+        .select('display')
+        .eq('id', item.id)
+        .single();
+
+      if (error || !data || data.display === false) {
+        toast({
+          title: '受付停止中',
+          description: `「${item.name}」は現在注文を受け付けていません。`,
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+          position: 'top',
+        });
+        setLoadingItems(prev => ({ ...prev, [item.id]: false })); 
+        return; 
+      }
+
+      setCart((prev) => {
+        const hit = prev.find((c) => c.id === item.id);
+        return hit
+          ? prev.map((c) => (c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c))
+          : [...prev, { ...item, quantity: 1 }];
+      });
+      toast({ title: `${item.name}をカートに追加しました。`, status: 'success', duration: 1500, isClosable: true, position: 'top' });
+    
+    } catch (err) {
+       toast({
+          title: 'エラー',
+          description: 'カートへの追加に失敗しました。',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+          position: 'top',
+        });
+    } finally {
+      setLoadingItems(prev => ({ ...prev, [item.id]: false })); 
+    }
   };
 
   const removeFromCart = (itemId: string) => {
@@ -41,14 +79,12 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
 
   const total = () => cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
-  // ★遷移のみ（ポイントに触れない）
   const handleGoCheckout = () => {
     if (cart.length === 0) {
       toast({ title: 'カートが空です', status: 'warning', duration: 1200, isClosable: true, position: 'top' });
       return;
     }
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart)); // カート保存
-    // 現在の URL パラメータに seat があれば保存しておく（ポイント決済で利用）
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
     try {
       if (seatParam) {
         localStorage.setItem('newE3_seat', String(seatParam));
@@ -56,7 +92,7 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
     } catch {
       // ignore storage errors
     }
-    router.push('/checkout'); // 決済方法選択へ
+    router.push('/checkout');
   };
 
   return (
@@ -71,9 +107,21 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
                 <Box p={4}>
                   <Text fontWeight="bold" fontSize="lg" noOfLines={1}>{item.name}</Text>
                   <Text mt={2} fontSize="xl" color="gray.800">¥{item.price.toLocaleString()}</Text>
-                  <Button mt={4} colorScheme="teal" onClick={() => addToCart(item)} w="full">
+                  {/* ▼ 
+START MODIFICATION 
+▼ */}
+                  <Button 
+                    mt={4} 
+                    colorScheme="teal" 
+                    onClick={() => addToCart(item)} 
+                    w="full"
+                    isLoading={loadingItems[item.id]} // ◀ ローディング状態を反映
+                  >
                     カートに追加
                   </Button>
+                  {/* ▲ 
+END MODIFICATION 
+▲ */}
                 </Box>
               </GridItem>
             ))}
