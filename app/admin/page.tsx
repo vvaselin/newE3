@@ -3,15 +3,16 @@ import { createClient } from '@/utils/supabase/server'
 import LogoutButton from './LogoutButton'
 import Link from 'next/link'
 import { Button, Box } from '@chakra-ui/react'
-import SimpleOrderList from './SimpleOrderList' // ◀ 新しいコンポーネントをインポート
+// import SimpleOrderList from './SimpleOrderList' // ◀ 削除
+import AdminOrderKanban from './AdminOrderKanban' // ◀ 新しいコンポーネントをインポート
 
 // サーバーサイドで注文データを取得する関数
 async function getOrders() {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('orders')
-    .select('seat_number, paid_at') // 必要なカラムのみ取得
-    .order('seat_number', { ascending: true }) // 席番号順に取得
+    .select('seat_number, paid_at, cooking') // ◀ 'cooking' カラムを追加
+    .order('paid_at', { ascending: true }) // 注文時間順に取得
 
   if (error) {
     console.error('Error fetching orders for admin:', error.message)
@@ -47,9 +48,9 @@ export default async function AdminPage() {
 Order Status Section 
 ▼ */}
       <Box mt={10}>
-        {/* SimpleOrderList を呼び出し、サーバーデータを渡す 
+        {/* AdminOrderKanban を呼び出し、サーバーデータを渡す 
 */}
-        <SimpleOrderList initialOrders={initialOrders} />
+        <AdminOrderKanban initialOrders={initialOrders} />
       </Box>
       {/* ▲ 
 Order Status Section 
