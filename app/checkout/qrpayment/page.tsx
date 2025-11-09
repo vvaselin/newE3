@@ -46,7 +46,7 @@ export default function QRPaymentPage() {
   const chargeAmount = remaining > 0 ? remaining : total;
   const formatJPY = (n: number) => `¥${n.toLocaleString()}`;
 
-  const complete = (ok: boolean) => {
+  const complete = async (ok: boolean) => {
     if (!chargeAmount) {
       toast({
         title: '決済対象がありません',
@@ -60,6 +60,33 @@ export default function QRPaymentPage() {
     }
 
     if (ok) {
+      // 登録: seat を server に送る
+      let seatRaw = null;
+      try { seatRaw = localStorage.getItem('newE3_seat'); } catch {}
+      if (!seatRaw) {
+        toast({ title: '座席情報が見つかりませんでした', status: 'error', duration: 3000 });
+        return;
+      }
+      const seatNumber = Number(seatRaw);
+      if (!Number.isInteger(seatNumber) || seatNumber < 1) {
+        toast({ title: '座席番号が不正です', status: 'error', duration: 3000 });
+        return;
+      }
+
+      try {
+        const resp = await fetch('/api/orders/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seatNumber }) });
+        const j = await resp.json().catch(() => ({}));
+        if (!resp.ok || j.error) {
+          console.error('orders register failed', j);
+          toast({ title: '注文登録に失敗しました', description: j?.error ?? 'unknown', status: 'error', duration: 4000 });
+          return;
+        }
+      } catch (err) {
+        console.error('orders register error', err);
+        toast({ title: '注文登録に失敗しました', status: 'error', duration: 4000 });
+        return;
+      }
+
       localStorage.removeItem(REMAINING_STORAGE_KEY);
       localStorage.removeItem(CART_STORAGE_KEY);
       toast({
@@ -70,7 +97,7 @@ export default function QRPaymentPage() {
         isClosable: true,
         position: 'top',
       });
-      router.push('/menu');
+      router.push('/orderState');
     } else {
       toast({
         title: 'QR決済に失敗しました',
