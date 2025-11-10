@@ -8,7 +8,7 @@ export interface MenuItem {
   name: string;
   price: number;
   image: string;
-  genre?: string | null; // Supabaseのfoods.genreを受け取る
+genre: string;
 }
 
 async function getMenuItems(): Promise<MenuItem[]> {
