@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Box, Button, Grid, GridItem, Heading, Image, Text,
