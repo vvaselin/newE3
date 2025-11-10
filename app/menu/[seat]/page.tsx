@@ -7,6 +7,7 @@ export interface MenuItem {
   name: string;
   price: number;
   image: string;
+  genre: string;
 }
 
 async function getMenuItems(): Promise<MenuItem[]> {
