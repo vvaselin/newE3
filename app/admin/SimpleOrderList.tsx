@@ -42,7 +42,9 @@ export default function SimpleOrderList({ initialOrders }: { initialOrders: Orde
             setOrders((prev) => sortOrders([...prev, payload.new]))
           } else if (payload.eventType === 'DELETE') {
             setOrders((prev) => 
-              sortOrders(prev.filter((o) => o.seat_number.toString() !== payload.old.seat_number.toString()))
+              sortOrders(prev.filter((o) => 
+                payload.old && payload.old.seat_number && o.seat_number.toString() !== payload.old.seat_number.toString()
+              ))
             )
           }
         }
