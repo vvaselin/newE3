@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 
 // 席数の指定
-const SEATS_NUM = 10;
+const SEATS_NUM = 24;
 
 // 数字と色の対応
 const COLOR_STATUS = {
@@ -147,8 +147,9 @@ export default function congestion() {
   }, []);
 
   return (
-    <Box>
+    <Box display="flex" flexDirection="column" alignItems="center" justifyContent="flex-start" minHeight="100vh" paddingTop={8} position="relative">
       <Heading>混雑状況の確認</Heading>
+      {/*}
       <Box marginTop={4} display="flex" gap={4}>
         <Text>席登録</Text>
         <input type="number" placeholder="席番号" name="registerSeat" />
@@ -175,7 +176,15 @@ export default function congestion() {
           }
         }}>決定</button>
       </Box>
-      <Box marginTop={4} display="flex" flexWrap="wrap">
+      */}
+      <Box 
+        marginTop={4} 
+        display="grid" 
+        gridTemplateColumns="repeat(4, 1fr)" 
+        gridTemplateRows="repeat(6, 1fr)"
+        gap={16}
+        maxWidth="fit-content"
+      >
         {Array.from({ length: SEATS_NUM }).map((_, index) => {
           const seat = seats.find(s => s.id === index + 1);
           let backgroundColor;
@@ -205,7 +214,6 @@ export default function congestion() {
               height="40px"
               border="1px solid black"
               backgroundColor={backgroundColor}
-              margin="2px"
               display="flex"
               alignItems="center"
               justifyContent="center"
@@ -214,6 +222,40 @@ export default function congestion() {
             </Box>
           );
         })}
+      </Box>
+      
+      {/* 色ごとの時間経過の凡例 */}
+      <Box
+        position="fixed"
+        bottom={4}
+        right={4}
+        backgroundColor="white"
+        padding={4}
+        border="1px solid gray"
+        borderRadius="md"
+        boxShadow="md"
+        display="flex"
+        flexDirection="column"
+        gap={2}
+        minWidth="200px"
+      >
+        <Text fontWeight="bold" marginBottom={2}>時間経過</Text>
+        <Box display="flex" alignItems="center" gap={2}>
+          <Box width="20px" height="20px" backgroundColor="white" border="1px solid black" />
+          <Text>空席</Text>
+        </Box>
+        <Box display="flex" alignItems="center" gap={2}>
+          <Box width="20px" height="20px" backgroundColor="green" border="1px solid black" />
+          <Text>1分経過</Text>
+        </Box>
+        <Box display="flex" alignItems="center" gap={2}>
+          <Box width="20px" height="20px" backgroundColor="blue" border="1px solid black" />
+          <Text>2分経過</Text>
+        </Box>
+        <Box display="flex" alignItems="center" gap={2}>
+          <Box width="20px" height="20px" backgroundColor="red" border="1px solid black" />
+          <Text>3分経過</Text>
+        </Box>
       </Box>
     </Box>
   );
