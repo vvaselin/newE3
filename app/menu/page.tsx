@@ -7,12 +7,14 @@ export interface MenuItem {
   name: string;
   price: number;
   image: string;
+  Display?: boolean;
 }
 
 async function getMenuItems(): Promise<MenuItem[]> {
   const { data: foods, error } = await supabase
     .from('foods')
     .select('*')
+    .eq('display', true)
     .order('id', { ascending: true });
 
    if (error) {
