@@ -1,15 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import {
   Box, Button, Grid, GridItem, Heading, Image, Text,
   VStack, HStack, Divider, Container, useToast,
   Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon, Badge,
 } from '@chakra-ui/react';
-import type { MenuItem as BaseMenuItem } from './page';
-
-type MenuItem = BaseMenuItem & { genre?: string | null }; // 既存型は変更せず拡張のみ
+import type { MenuItem } from './page';
+import { createClient } from '@/utils/supabase/client'; 
 
 interface CartItem extends MenuItem { quantity: number; }
 interface MenuPageClientProps { menuItems: MenuItem[]; }
@@ -55,10 +54,14 @@ function pickCategory(item: MenuItem): { label: string; sort: number } {
 
 export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState<{[key: string]: boolean}>({}); 
   const toast = useToast();
   const router = useRouter();
+  const params = useParams();
+  const seatParam = (params as { seat?: string } | undefined)?.seat;
+  const supabase = createClient(); // ◀ Supabaseクライアントを初期化
 
-  // ★カテゴリ別にグループ化（並び順もここで）
+// ★カテゴリ別にグループ化（並び順もここで）
   const grouped = useMemo(() => {
     const map = new Map<string, { sort: number; items: MenuItem[] }>();
     for (const it of menuItems) {
@@ -91,14 +94,20 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
 
   const total = () => cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
-  // ★遷移のみ（ポイントに触れない）
   const handleGoCheckout = () => {
     if (cart.length === 0) {
       toast({ title: 'カートが空です', status: 'warning', duration: 1200, isClosable: true, position: 'top' });
       return;
     }
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart)); // カート保存
-    router.push('/checkout'); // 決済方法選択へ
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+    try {
+      if (seatParam) {
+        localStorage.setItem('newE3_seat', String(seatParam));
+      }
+    } catch {
+      // ignore storage errors
+    }
+    router.push('/checkout');
   };
 
   return (
@@ -106,8 +115,7 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
       <HStack spacing={8} align="start">
         <Box flex="3">
           <Heading as="h1" mb={6}>メニュー</Heading>
-
-          {/* 追加：アコーディオンでカテゴリごとに表示 */}
+{/* 追加：アコーディオンでカテゴリごとに表示 */}
           <Accordion allowMultiple defaultIndex={[0]}>
             {grouped.map(({ category, items }) => (
               <AccordionItem key={category} border="1px solid" borderColor="blackAlpha.100" rounded="lg" mb={3}>

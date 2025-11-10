@@ -26,7 +26,6 @@ export default function CheckoutPointsPage() {
 
   const [isOpen, setIsOpen] = useState(false);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const router = useRouter();
   const toast = useToast();
@@ -106,8 +105,6 @@ export default function CheckoutPointsPage() {
   const onConfirm = async () => { // asyncを追加
     if (!currentUser) return; // ユーザーがいない場合は何もしない
 
-    setIsSubmitting(true);
-
     const newOwnedPoints = ownedPoints - usePoints; // 新しいポイント残高
 
     // Supabaseのprofilesテーブルを更新
@@ -127,57 +124,12 @@ export default function CheckoutPointsPage() {
         duration: 5000,
         isClosable: true,
       });
-      setIsSubmitting(false);
       return; // エラーならここで処理中断
     }
 
-    // --- orders 登録 (サーバー API を呼ぶ) ---
-    // 1) seat を localStorage から読み出す
-    let seatRaw: string | null = null;
-    try {
-      seatRaw = localStorage.getItem('newE3_seat');
-    } catch (e) {
-      // ignore
-    }
-
-    if (!seatRaw) {
-      toast({ title: '座席情報が見つかりませんでした', status: 'error', duration: 3000 });
-      // 部分支払い/全額処理の後の遷移はここで制御
-      setIsSubmitting(false);
-      return;
-    }
-
-    const seatNumber = Number(seatRaw);
-    if (!Number.isInteger(seatNumber) || seatNumber < 1) {
-      toast({ title: '座席番号が不正です', status: 'error', duration: 3000 });
-      setIsSubmitting(false);
-      return;
-    }
-
-    try {
-      const resp = await fetch('/api/orders/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seatNumber }),
-      });
-      const j = await resp.json();
-      if (!resp.ok || j.error) {
-        console.error('order register error', j);
-        toast({ title: '注文登録に失敗しました', description: j?.error ?? 'unknown', status: 'error', duration: 4000 });
-        setIsSubmitting(false);
-        return;
-      }
-      // 登録成功: サーバーが upsert した行（paid_at を含む）を返す
-      const registeredRow = j.row;
-      console.debug('registered order', registeredRow);
-    } catch (err) {
-      console.error('order register fetch error', err);
-      toast({ title: '注文登録に失敗しました', status: 'error', duration: 4000 });
-      setIsSubmitting(false);
-      return;
-    }
-
     // 更新成功時の処理 (localStorageの更新は削除)
+    // localStorage.setItem(POINTS_STORAGE_KEY, String(newOwnedPoints)); // ← 削除
+
     if (remain > 0) {
       // 残額あり：部分支払い（カート維持）
       localStorage.setItem(REMAINING_STORAGE_KEY, String(remain));
@@ -196,11 +148,8 @@ export default function CheckoutPointsPage() {
         description: `使用 ${usePoints.toLocaleString()} 円 / 残ポイント ${newOwnedPoints.toLocaleString()} 円`,
         status: 'success', duration: 2000, isClosable: true, position: 'top',
       });
-      // 注文表示ページへ遷移
-      router.push('/orderState');
+      router.push('/');
     }
-
-    setIsSubmitting(false);
   };
   // --- ここまで修正点 2 ---
 
