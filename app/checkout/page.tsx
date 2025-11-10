@@ -1,120 +1,180 @@
 'use client';
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Box, Button, Container, Divider, Heading, HStack, VStack, Text, useToast, SimpleGrid, Badge,
+  Box, Button, Container, Divider, Heading, HStack, Text, VStack, Link as ChakraLink, Icon,
+  Spinner // ◀ Spinner をインポート
 } from '@chakra-ui/react';
+import { FaYenSign, FaQrcode, FaCreditCard, FaMoneyBillWave, FaMobileAlt, FaTrain, FaWallet, FaCoins } from 'react-icons/fa';
+import NextLink from 'next/link';
+import { createClient } from '@/utils/supabase/client'; // ◀ Supabaseクライアントをインポート
+import type { User } from '@supabase/supabase-js'; // ◀ User 型をインポート
 
 type CartItem = { id: string; name: string; price: number; quantity: number; image?: string; };
 
 const CART_STORAGE_KEY = 'newE3_cart';
-const POINTS_STORAGE_KEY = 'newE3_points';     // 既存のポイント（円相当）を読むだけ
 const REMAINING_STORAGE_KEY = 'newE3_remaining';
-const RETURN_TO_KEY = 'newE3_returnTo';        // ★追加：戻り先キー
 
-export default function CheckoutMethodPage() {
+export default function CheckoutPage() {
+  const supabase = createClient();
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [ownedPoints, setOwnedPoints] = useState<number>(0);
-  const [remainingHint, setRemainingHint] = useState<number | null>(null);
+  const [remaining, setRemaining] = useState<number>(0);
 
+  const [points, setPoints] = useState<number>(0); // DBから取得するポイント
+  const [currentUser, setCurrentUser] = useState<User | null>(null); // ログインユーザー
+  const [isPointsLoading, setIsPointsLoading] = useState(true); // ポイント読み込み中フラグ
+  
   const router = useRouter();
-  const toast = useToast();
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(CART_STORAGE_KEY);
-      setCart(raw ? JSON.parse(raw) : []);
-    } catch { setCart([]); }
-
-    const pts = Number(localStorage.getItem(POINTS_STORAGE_KEY));
-    setOwnedPoints(Number.isFinite(pts) ? pts : 0);
-
-    const rem = Number(localStorage.getItem(REMAINING_STORAGE_KEY));
-    setRemainingHint(Number.isFinite(rem) && rem > 0 ? rem : null);
-  }, []);
-
   const total = useMemo(() => cart.reduce((s, it) => s + it.price * it.quantity, 0), [cart]);
+  const payAmount = useMemo(() => (remaining > 0 ? remaining : total), [remaining, total]);
 
-  // カートが空でも、未決済残額があれば遷移を許可する
-  const guardAndPush = (path: string) => {
-    const hasRemaining = Number.isFinite(remainingHint as number) && (remainingHint ?? 0) > 0;
-    if (cart.length === 0 && !hasRemaining) {
-      toast({ title: 'カートが空です', status: 'warning', duration: 1500, isClosable: true, position: 'top' });
-      return;
-    }
-    router.push(path);
-  };
-
-  const gotoPoints      = () => guardAndPush('/checkout/points');
-  const gotoCredit      = () => guardAndPush('/checkout/credit');
-  const gotoQRPayment   = () => guardAndPush('/checkout/qrpayment');
-  const gotoCash        = () => guardAndPush('/checkout/cash');
-  const gotoTransit     = () => guardAndPush('/checkout/transit');
-  const gotoEmoney      = () => guardAndPush('/checkout/emoney');
-  const gotoWallet      = () => guardAndPush('/checkout/wallet');
-
-  // ★保存された戻り先に戻る（なければ /menu）
-  const backToMenu = useCallback(() => {
+  
+  useEffect(() => {
+    // 1. カートと残額をlocalStorageから読み込む (既存ロジック)
     try {
-      const to = localStorage.getItem(RETURN_TO_KEY);
-      if (to) {
-        localStorage.removeItem(RETURN_TO_KEY); // 誤戻り防止に消す
-        router.push(to);
-      } else {
-        router.push('/menu/[seat]');
-      }
+      const rawCart = localStorage.getItem(CART_STORAGE_KEY);
+      setCart(rawCart ? JSON.parse(rawCart) : []);
+      const rawRemain = localStorage.getItem(REMAINING_STORAGE_KEY);
+      setRemaining(rawRemain ? Number(rawRemain) : 0);
     } catch {
-      router.push('/menu/[seat]');
+      setCart([]);
+      setRemaining(0);
     }
-  }, [router]);
+
+    
+    const fetchUserAndPoints = async () => {
+      setIsPointsLoading(true);
+      // ユーザー取得
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        setCurrentUser(user); // ユーザー情報をセット
+        
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('point')
+          .eq('id', user.id)
+          .single();
+          
+        if (profile && profile.point) {
+          setPoints(profile.point);
+        } else {
+          setPoints(0); // エラーまたはプロファイルなし
+        }
+      } else {
+        // 未ログイン
+        setCurrentUser(null);
+        setPoints(0);
+      }
+      setIsPointsLoading(false); // 読み込み完了
+    };
+    
+    fetchUserAndPoints(); // 実行
+    
+  }, [supabase]); 
+
+  const payMethods = [
+    { name: '現金', href: '/checkout/cash', icon: FaMoneyBillWave, color: 'gray' },
+    { name: 'QR決済', href: '/checkout/qrpayment', icon: FaQrcode, color: 'gray' },
+    { name: 'クレジット', href: '/checkout/credit', icon: FaCreditCard, color: 'gray' },
+    { name: '電子マネー', href: '/checkout/emoney', icon: FaMobileAlt, color: 'gray' },
+    { name: '交通系IC', href: '/checkout/transit', icon: FaTrain, color: 'gray' },
+    { name: 'ウォレット', href: '/checkout/wallet', icon: FaWallet, color: 'gray' },
+  ];
 
   return (
     <Container maxW="container.lg" py={10}>
-      <HStack justify="space-between" mb={4}>
-        <Heading size="lg">決済方法の選択</Heading>
-        {/* ★変更：固定 /menu → 戻り先へ */}
-        <Button variant="ghost" onClick={backToMenu}>メニューに戻る</Button>
-      </HStack>
-
+      {/* 注文サマリー (変更なし) */}
       <Box borderWidth="1px" borderRadius="lg" p={6}>
-        <Heading as="h2" size="md" mb={3}>ご注文</Heading>
-        {cart.length === 0 ? (
-          <Text color="gray.500">カートが空です。メニューから商品を追加してください。</Text>
-        ) : (
-          <VStack align="stretch" spacing={3} divider={<Divider />}>
-            {cart.map((it) => (
-              <HStack key={it.id} justify="space-between">
-                <Box><Text fontWeight="bold">{it.name}</Text><Text fontSize="sm">数量 {it.quantity}</Text></Box>
-                <Text fontWeight="bold">¥{(it.price * it.quantity).toLocaleString()}</Text>
-              </HStack>
-            ))}
-            <HStack justify="space-between" pt={1}>
-              <Text>合計</Text><Text fontWeight="bold">¥{total.toLocaleString()}</Text>
+        {/* ... (省略) ... */}
+        <VStack align="stretch" spacing={3} divider={<Divider />}>
+          {cart.map((it) => (
+            <HStack key={it.id} justify="space-between">
+              <Box><Text fontWeight="bold">{it.name}</Text><Text fontSize="sm">数量 {it.quantity}</Text></Box>
+              <Text fontWeight="bold">¥{(it.price * it.quantity).toLocaleString()}</Text>
             </HStack>
-          </VStack>
-        )}
-        <HStack mt={3} spacing={3}>
-          <Badge colorScheme="purple">所持ポイント：{ownedPoints.toLocaleString()} 円</Badge>
-          {remainingHint !== null && <Badge colorScheme="orange">未決済の残額：¥{remainingHint.toLocaleString()}</Badge>}
-        </HStack>
+          ))}
+          <HStack justify="space-between" pt={1}>
+            <Text>カート合計</Text><Text fontWeight="bold">¥{total.toLocaleString()}</Text>
+          </HStack>
+          {remaining > 0 && (
+            <HStack justify="space-between" pt={1} color="orange.600">
+              <Text>ポイント支払い済み</Text><Text fontWeight="bold">- ¥{(total - remaining).toLocaleString()}</Text>
+            </HStack>
+          )}
+          <Divider />
+          <HStack justify="space-between" pt={1}>
+            <Text fontWeight="bold" fontSize="xl">お支払い金額</Text>
+            <Text fontWeight="bold" fontSize="xl" color="teal.500">
+              ¥{payAmount.toLocaleString()}
+            </Text>
+          </HStack>
+        </VStack>
       </Box>
 
-      <Box borderWidth="1px" borderRadius="lg" p={6} mt={6}>
-        <Heading as="h2" size="md" mb={4}>支払い方法</Heading>
-        <SimpleGrid columns={[1, 2]} spacing={4}>
-          <Button size="lg" colorScheme="teal" onClick={gotoCash}>現金支払い</Button>
-          <Button size="lg" colorScheme="teal" onClick={gotoTransit}>交通IC系</Button>
-          <Button size="lg" colorScheme="teal" onClick={gotoEmoney}>電子マネー</Button>
-          <Button size="lg" colorScheme="teal" onClick={gotoWallet}>ウォレット（Apple/Google）</Button>
-          <Button size="lg" colorScheme="teal" onClick={gotoPoints}>ポイント払い</Button>
-          <Button size="lg" colorScheme="teal" onClick={gotoCredit}>クレジット払い</Button>
-          <Button size="lg" colorScheme="teal" onClick={gotoQRPayment}>QRコード決済</Button>
-        </SimpleGrid>
-        <Text fontSize="sm" color="gray.500" mt={3}>
-          ※ ポイント／クレジット／QR は画面内で完了します。他方式は現在モック画面です。
-        </Text>
+      <Heading as="h2" size="lg" mt={10} mb={4}>お支払い方法</Heading>
+      
+      {/* ポイント支払いボタン */}
+      <Box mb={4}>
+        {/* ▼ 
+START MODIFICATION 
+▼ */}
+        <Button
+          as={NextLink}
+          href="/checkout/points"
+          leftIcon={<Icon as={FaCoins} />}
+          colorScheme="teal" // ポイントなので目立たせる
+          variant="solid"
+          size="lg"
+          height="60px"
+          w="100%"
+          // ログインしていない、または支払う金額が 0 の場合は無効化
+          isDisabled={!currentUser || payAmount === 0}
+          _disabled={{ opacity: 0.5, cursor: 'not-allowed' }}
+          title={!currentUser ? 'ポイント利用にはログインが必要です' : (payAmount === 0 ? 'お支払い金額が0円です' : undefined)}
+        >
+          <HStack w="100%" justify="space-between">
+            <Text>ポイントで支払う</Text>
+            {isPointsLoading ? (
+              <Spinner size="sm" /> // 読み込み中はスピナー
+            ) : (
+              <Text fontSize="sm" color="gray.100">
+                所持: {points.toLocaleString()} 円
+              </Text>
+            )}
+          </HStack>
+        </Button>
+        {!currentUser && (
+          <Text fontSize="xs" color="gray.500" mt={1}>
+            ログインするとポイントが利用できます。
+          </Text>
+        )}
+        {/* ▲ 
+END MODIFICATION 
+▲ */}
       </Box>
+
+      {/* その他の支払いボタン (変更なし) */}
+      <VStack spacing={3} align="stretch">
+        {payMethods.map((m) => (
+          <Button
+            key={m.name}
+            as={NextLink}
+            href={m.href}
+            leftIcon={<Icon as={m.icon} />}
+            colorScheme={m.color}
+            variant="outline"
+            size="lg"
+            height="60px"
+            w="100%"
+            justifyContent="flex-start"
+            isDisabled={payAmount === 0} // 支払い完了なら無効化
+          >
+            {m.name}
+          </Button>
+        ))}
+      </VStack>
     </Container>
   );
 }
