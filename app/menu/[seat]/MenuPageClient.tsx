@@ -1,77 +1,70 @@
 'use client';
 
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Box, Button, Grid, GridItem, Heading, Image, Text,
   VStack, HStack, Divider, Container, useToast,
   Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon, Badge,
 } from '@chakra-ui/react';
-import type { MenuItem } from './page';
-import { createClient } from '@/utils/supabase/client'; 
+import type { MenuItem as BaseMenuItem } from './page';
+
+// Supabaseから来る genre をこのファイル内でだけ拡張して受け取る
+type MenuItem = BaseMenuItem & { genre?: string | null };
 
 interface CartItem extends MenuItem { quantity: number; }
 interface MenuPageClientProps { menuItems: MenuItem[]; }
 
-const CART_STORAGE_KEY = 'newE3_cart'; // カートだけ保存
+const CART_STORAGE_KEY = 'newE3_cart';
 
-// 指定トークン → ラベル/並び順
-const TOKEN_TO_CATEGORY: Array<{ token: string; label: string; sort: number }> = [
-  { token: '_Main-dish',              label: '主菜',         sort: 1 },
-  { token: '_Side-dishes-and-salads', label: '副菜・サラダ', sort: 2 },
-  { token: '_Rice-bowls-and-curry',   label: '丼物・カレー', sort: 3 },
-  { token: '_noodles',                label: '麵類',         sort: 4 },
-  { token: '_rice',                   label: 'ごはん',       sort: 5 },
-  { token: '_Soup',                   label: '汁物',         sort: 6 },
-  { token: '_dessert',                label: 'デザート',     sort: 7 },
-];
+// 英語/表記ゆれ → 日本語ラベル
+const GENRE_LABELS: Record<string, string> = {
+  'main-dish': '主菜',
+  'maindish': '主菜',
+  'side-dishes-and-salads': '副菜・サラダ',
+  'rice-bowls-and-curry': '丼物・カレー',
+  'noodles': '麺類',
+  'rice': 'ごはん',
+  'soup': '汁物',
+  'dessert': 'デザート',
+};
 
-// 画像名の保険（genre が無い/一致しない場合）
-const IMAGE_PATTERNS: Array<{ re: RegExp; label: string; sort: number }> = [
-  { re: /Main-dish/i,               label: '主菜',         sort: 1 },
-  { re: /Side-dishes-and-salads/i,  label: '副菜・サラダ', sort: 2 },
-  { re: /Rice-bowls-and-curry/i,    label: '丼物・カレー', sort: 3 },
-  { re: /noodles/i,                 label: '麵類',         sort: 4 },
-  { re: /_rice/i,                   label: 'ごはん',       sort: 5 },
-  { re: /Soup/i,                    label: '汁物',         sort: 6 },
-  { re: /dessert/i,                 label: 'デザート',     sort: 7 },
-];
+// 表示順（ここにないものは最後に五十音順）
+const GENRE_ORDER = ['主菜', '副菜・サラダ', '丼物・カレー', '麺類', 'ごはん', '汁物', 'デザート', 'その他'];
 
-function pickCategory(item: MenuItem): { label: string; sort: number } {
-  const g = (item.genre ?? '').toString();
-  if (g) {
-    const lower = g.toLowerCase();
-    const hit = TOKEN_TO_CATEGORY.find(({ token }) => lower.includes(token.toLowerCase()));
-    if (hit) return { label: hit.label, sort: hit.sort };
-  }
-  // 画像名から推定
-  const img = (item.image ?? '').toString();
-  for (const p of IMAGE_PATTERNS) {
-    if (p.re.test(img)) return { label: p.label, sort: p.sort };
-  }
-  return { label: 'その他', sort: 999 };
+function toJapaneseGenreLabel(raw?: string | null): string {
+  if (!raw) return 'その他';
+  const key = raw.toString().trim().toLowerCase().replace(/[_\s]+/g, '-');
+  return GENRE_LABELS[key] ?? raw; // 既に日本語なら生かす
 }
 
 export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [loadingItems, setLoadingItems] = useState<{[key: string]: boolean}>({}); 
   const toast = useToast();
   const router = useRouter();
   const params = useParams();
   const seatParam = (params as { seat?: string } | undefined)?.seat;
-  const supabase = createClient(); // ◀ Supabaseクライアントを初期化
 
-// ★カテゴリ別にグループ化（並び順もここで）
+  // ★ Supabaseの genre だけでカテゴリ分け（画像名判定はしない）
   const grouped = useMemo(() => {
-    const map = new Map<string, { sort: number; items: MenuItem[] }>();
+    const map = new Map<string, MenuItem[]>();
     for (const it of menuItems) {
-      const { label, sort } = pickCategory(it);
-      if (!map.has(label)) map.set(label, { sort, items: [] });
-      map.get(label)!.items.push(it);
+      const label = toJapaneseGenreLabel(it.genre) || 'その他';
+      if (!map.has(label)) map.set(label, []);
+      map.get(label)!.push(it);
     }
-    return Array.from(map.entries())
-      .sort((a, b) => a[1].sort - b[1].sort)
-      .map(([category, { sort, items }]) => ({ category, sort, items }));
+
+    const entries = Array.from(map.entries());
+    entries.sort((a, b) => {
+      const ai = GENRE_ORDER.indexOf(a[0]);
+      const bi = GENRE_ORDER.indexOf(b[0]);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return 1;
+      return a[0].localeCompare(b[0], 'ja');
+    });
+
+    return entries.map(([category, items]) => ({ category, items }));
   }, [menuItems]);
 
   const addToCart = (item: MenuItem) => {
@@ -101,12 +94,8 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
     }
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
     try {
-      if (seatParam) {
-        localStorage.setItem('newE3_seat', String(seatParam));
-      }
-    } catch {
-      // ignore storage errors
-    }
+      if (seatParam) localStorage.setItem('newE3_seat', String(seatParam));
+    } catch {}
     router.push('/checkout');
   };
 
@@ -115,7 +104,8 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
       <HStack spacing={8} align="start">
         <Box flex="3">
           <Heading as="h1" mb={6}>メニュー</Heading>
-{/* 追加：アコーディオンでカテゴリごとに表示 */}
+
+          {/* アコーディオンで genre ごとに表示（日本語ラベル） */}
           <Accordion allowMultiple defaultIndex={[0]}>
             {grouped.map(({ category, items }) => (
               <AccordionItem key={category} border="1px solid" borderColor="blackAlpha.100" rounded="lg" mb={3}>
@@ -128,11 +118,10 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
                   </AccordionButton>
                 </h2>
                 <AccordionPanel pt={4} pb={6}>
-                  {/* ★元のGrid構造はそのまま。配列だけ category 内の items に差し替え★ */}
+                  {/* seat 配下なので ../ を付与（あなたの既存仕様維持） */}
                   <Grid templateColumns="repeat(auto-fill, minmax(250px, 1fr))" gap={6}>
                     {items.map((item) => (
                       <GridItem key={item.id} borderWidth="1px" borderRadius="lg" overflow="hidden" boxShadow="sm">
-                        {/* seat配下なので既存仕様どおり ../ を付与 */}
                         <Image src={'../' + item.image} alt={item.name} w="100%" h="200px" objectFit="cover" />
                         <Box p={4}>
                           <Text fontWeight="bold" fontSize="lg" noOfLines={1}>{item.name}</Text>
@@ -150,11 +139,9 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
           </Accordion>
         </Box>
 
-        {/* 注文カートセクション（元のまま） */}
+        {/* 注文カート */}
         <Box flex="1" p={6} borderWidth="1px" borderRadius="lg" position="sticky" top="2rem" boxShadow="md">
-          <Heading as="h2" size="lg" mb={4}>
-            注文カート
-          </Heading>
+          <Heading as="h2" size="lg" mb={4}>注文カート</Heading>
           <Divider />
           {cart.length === 0 ? (
             <Text mt={4} color="gray.500">カートは空です。</Text>
