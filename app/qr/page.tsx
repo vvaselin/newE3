@@ -6,7 +6,7 @@ import { QrCode } from 'lucide-react';
 export default function QRPage() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="bg-white shadow-xl rounded-3xl p-8 w-full max-w-md text-center">
+      <div className="bg-white shadow-xl rounded-3xl p-8 max-w-md mx-auto text-center">
         {/* ヘッダー部分 */}
         <div className="flex flex-col items-center mb-6">
           <div className="bg-blue-100 p-4 rounded-full mb-3">
