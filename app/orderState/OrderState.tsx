@@ -53,15 +53,7 @@ type OrderRow = {
 function MyReceiveButton() {
   const router = useRouter();
   return (
-    <Button
-      colorScheme="blue"
-      onClick={() => router.push('/receive')}
-      position="fixed"
-      right="24px"
-      bottom="24px"
-      size="md"
-      zIndex={40}
-    >
+    <Button colorScheme="blue" onClick={() => router.push('/receive')} size="md">
       自分の注文商品を受け取る
     </Button>
   );
@@ -363,7 +355,10 @@ export default function OrderState() {
 
         {/* 中央の区切り線 */}
         <Box position="relative" aria-hidden _after={{ content: '""', position: "absolute", left: "50%", top: 8, bottom: 8, width: "1px", background: "gray.200", transform: "translateX(-50%)" }} />
-        {/* 固定表示ボタン（画面右下） */}
+      </Box>
+
+      {/* ページ埋め込み: 調理完了表示の下（ページ右下寄せ）に配置 */}
+      <Box mt={4} display="flex" justifyContent="flex-end">
         <MyReceiveButton />
       </Box>
     </Box>
