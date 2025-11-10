@@ -144,6 +144,8 @@ export default function CheckoutPointsPage() {
       toast({ title: '座席情報が見つかりませんでした', status: 'error', duration: 3000 });
       // 部分支払い/全額処理の後の遷移はここで制御
       setIsSubmitting(false);
+      await supabase.from('profiles').update({ point: ownedPoints }).eq('id', currentUser.id);
+      toast({ title: '処理が失敗したため、ポイントを元に戻しました', status: 'warning', duration: 4000 });
       return;
     }
 
@@ -151,29 +153,37 @@ export default function CheckoutPointsPage() {
     if (!Number.isInteger(seatNumber) || seatNumber < 1) {
       toast({ title: '座席番号が不正です', status: 'error', duration: 3000 });
       setIsSubmitting(false);
+      await supabase.from('profiles').update({ point: ownedPoints }).eq('id', currentUser.id);
+      toast({ title: '処理が失敗したため、ポイントを元に戻しました', status: 'warning', duration: 4000 });
       return;
     }
 
-    try {
-      const resp = await fetch('/api/orders/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seatNumber }),
+    const { error: orderError } = await supabase
+      .from('orders')
+      .upsert({ 
+        seat_number: seatNumber, 
+        paid_at: new Date().toISOString(),
+        cooking: true // 'cooking' カラムも設定
+      }, { 
+        onConflict: 'seat_number' 
       });
-      const j = await resp.json();
-      if (!resp.ok || j.error) {
-        console.error('order register error', j);
-        toast({ title: '注文登録に失敗しました', description: j?.error ?? 'unknown', status: 'error', duration: 4000 });
-        setIsSubmitting(false);
-        return;
-      }
-      // 登録成功: サーバーが upsert した行（paid_at を含む）を返す
-      const registeredRow = j.row;
-      console.debug('registered order', registeredRow);
-    } catch (err) {
-      console.error('order register fetch error', err);
-      toast({ title: '注文登録に失敗しました', status: 'error', duration: 4000 });
+
+    if (orderError) {
+      console.error('order upsert error', orderError);
+      toast({ title: '注文登録に失敗しました', description: orderError.message, status: 'error', duration: 4000 });
       setIsSubmitting(false);
+      const { error: rollbackError } = await supabase
+        .from('profiles')
+        .update({ point: ownedPoints })
+        .eq('id', currentUser.id);
+
+      if (rollbackError) {
+         toast({ title: '【重要】注文登録に失敗しましたが、ポイントの差し戻しにも失敗しました。', description: '管理者に連絡してください。', status: 'error', duration: 10000 });
+      } else {
+         toast({ title: '注文登録に失敗したため、使用ポイントを元に戻しました', status: 'warning', duration: 5000 });
+         // 画面の所持ポイント表示も即時更新
+         setOwnedPoints(ownedPoints); 
+      }
       return;
     }
 
@@ -314,7 +324,9 @@ export default function CheckoutPointsPage() {
             </AlertDialogBody>
             <AlertDialogFooter>
               <Button ref={cancelRef} onClick={() => setIsOpen(false)}>キャンセル</Button>
-              <Button colorScheme="teal" onClick={onConfirm} ml={3}>実行する</Button>
+              <Button colorScheme="teal" onClick={onConfirm} ml={3}isLoading={isSubmitting}>
+                実行する
+              </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialogOverlay>
