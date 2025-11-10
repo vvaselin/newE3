@@ -144,6 +144,8 @@ export default function CheckoutPointsPage() {
       toast({ title: '座席情報が見つかりませんでした', status: 'error', duration: 3000 });
       // 部分支払い/全額処理の後の遷移はここで制御
       setIsSubmitting(false);
+      await supabase.from('profiles').update({ point: ownedPoints }).eq('id', currentUser.id);
+      toast({ title: '処理が失敗したため、ポイントを元に戻しました', status: 'warning', duration: 4000 });
       return;
     }
 
@@ -151,6 +153,8 @@ export default function CheckoutPointsPage() {
     if (!Number.isInteger(seatNumber) || seatNumber < 1) {
       toast({ title: '座席番号が不正です', status: 'error', duration: 3000 });
       setIsSubmitting(false);
+      await supabase.from('profiles').update({ point: ownedPoints }).eq('id', currentUser.id);
+      toast({ title: '処理が失敗したため、ポイントを元に戻しました', status: 'warning', duration: 4000 });
       return;
     }
 
@@ -168,7 +172,18 @@ export default function CheckoutPointsPage() {
       console.error('order upsert error', orderError);
       toast({ title: '注文登録に失敗しました', description: orderError.message, status: 'error', duration: 4000 });
       setIsSubmitting(false);
-      // TODO: ここでポイントを戻す処理(ロールバック)が必要か検討
+      const { error: rollbackError } = await supabase
+        .from('profiles')
+        .update({ point: ownedPoints })
+        .eq('id', currentUser.id);
+
+      if (rollbackError) {
+         toast({ title: '【重要】注文登録に失敗しましたが、ポイントの差し戻しにも失敗しました。', description: '管理者に連絡してください。', status: 'error', duration: 10000 });
+      } else {
+         toast({ title: '注文登録に失敗したため、使用ポイントを元に戻しました', status: 'warning', duration: 5000 });
+         // 画面の所持ポイント表示も即時更新
+         setOwnedPoints(ownedPoints); 
+      }
       return;
     }
 
