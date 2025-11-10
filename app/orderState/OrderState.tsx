@@ -15,6 +15,7 @@ import {
   SimpleGrid,
 } from "@chakra-ui/react";
 import { supabase } from "@/supabase-client";
+import { useRouter } from "next/navigation";
 
 /**
  * OrderState
@@ -42,8 +43,25 @@ type OrderRow = {
   paid_at: string; // ISO
 };
 
+// NOTE: per-seat receive buttons removed. A single "自分の注文商品を受け取る" button
+// is shown in the admin area and navigates to `/receive`.
+
+/**
+ * 固定表示の「自分の注文商品を受け取る」ボタン
+ * 画面を上下左右で4分割したときの右下に表示されるように固定する
+ */
+function MyReceiveButton() {
+  const router = useRouter();
+  return (
+    <Button colorScheme="blue" onClick={() => router.push('/receive')} size="md">
+      自分の注文商品を受け取る
+    </Button>
+  );
+}
+
 export default function OrderState() {
   const toast = useToast();
+  const router = useRouter();
 
   // --- state ---
   const [seatInput, setSeatInput] = useState<string>("");
@@ -281,6 +299,8 @@ export default function OrderState() {
         }}>全削除（debug）</Button>
       </HStack>
 
+      {/* 利用者向け: 受け取りボタンは画面右下に固定表示する（MyReceiveButton） */}
+
       {/* 表示領域 */}
       <Box border="1px solid" borderColor="gray.200" borderRadius="md" p={4}>
         <SimpleGrid columns={2} spacing={4} alignItems="start">
@@ -299,6 +319,7 @@ export default function OrderState() {
                       <Box key={s} px={3} py={2} borderRadius="md" border="1px solid" borderColor="gray.300" backgroundColor="yellow.100">
                         <Text fontWeight="bold">席 {s}</Text>
                         <Text fontSize="xs" color="gray.600">{order ? `${formatElapsed(order.paid_at)} 経過` : "-"}</Text>
+                        {/* per-seat receive buttons removed - use the single '自分の注文商品を受け取る' ボタン above */}
                       </Box>
                     );
                   })}
@@ -322,6 +343,7 @@ export default function OrderState() {
                       <Box key={s} px={3} py={2} borderRadius="md" border="1px solid" borderColor="gray.300" backgroundColor="green.100">
                         <Text fontWeight="bold">席 {s}</Text>
                         <Text fontSize="xs" color="gray.600">{order ? `${formatElapsed(order.paid_at)} 経過` : "-"}</Text>
+                        {/* per-seat receive buttons removed - use the single '自分の注文商品を受け取る' ボタン above */}
                       </Box>
                     );
                   })}
@@ -333,6 +355,11 @@ export default function OrderState() {
 
         {/* 中央の区切り線 */}
         <Box position="relative" aria-hidden _after={{ content: '""', position: "absolute", left: "50%", top: 8, bottom: 8, width: "1px", background: "gray.200", transform: "translateX(-50%)" }} />
+      </Box>
+
+      {/* ページ埋め込み: 調理完了表示の下（ページ右下寄せ）に配置 */}
+      <Box mt={4} display="flex" justifyContent="flex-end">
+        <MyReceiveButton />
       </Box>
     </Box>
   );
