@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box, Button, Container, Divider, Heading, HStack, VStack, Text, useToast, SimpleGrid, Badge,
@@ -11,6 +11,7 @@ type CartItem = { id: string; name: string; price: number; quantity: number; ima
 const CART_STORAGE_KEY = 'newE3_cart';
 const POINTS_STORAGE_KEY = 'newE3_points';     // 既存のポイント（円相当）を読むだけ
 const REMAINING_STORAGE_KEY = 'newE3_remaining';
+const RETURN_TO_KEY = 'newE3_returnTo';        // ★追加：戻り先キー
 
 export default function CheckoutMethodPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -27,7 +28,7 @@ export default function CheckoutMethodPage() {
     } catch { setCart([]); }
 
     const pts = Number(localStorage.getItem(POINTS_STORAGE_KEY));
-    setOwnedPoints(Number.isFinite(pts) ? pts : 0); // 初期化しない
+    setOwnedPoints(Number.isFinite(pts) ? pts : 0);
 
     const rem = Number(localStorage.getItem(REMAINING_STORAGE_KEY));
     setRemainingHint(Number.isFinite(rem) && rem > 0 ? rem : null);
@@ -53,11 +54,27 @@ export default function CheckoutMethodPage() {
   const gotoEmoney      = () => guardAndPush('/checkout/emoney');
   const gotoWallet      = () => guardAndPush('/checkout/wallet');
 
+  // ★保存された戻り先に戻る（なければ /menu）
+  const backToMenu = useCallback(() => {
+    try {
+      const to = localStorage.getItem(RETURN_TO_KEY);
+      if (to) {
+        localStorage.removeItem(RETURN_TO_KEY); // 誤戻り防止に消す
+        router.push(to);
+      } else {
+        router.push('/menu/[seat]');
+      }
+    } catch {
+      router.push('/menu/[seat]');
+    }
+  }, [router]);
+
   return (
     <Container maxW="container.lg" py={10}>
       <HStack justify="space-between" mb={4}>
         <Heading size="lg">決済方法の選択</Heading>
-        <Button variant="ghost" onClick={() => router.push('/menu')}>メニューに戻る</Button>
+        {/* ★変更：固定 /menu → 戻り先へ */}
+        <Button variant="ghost" onClick={backToMenu}>メニューに戻る</Button>
       </HStack>
 
       <Box borderWidth="1px" borderRadius="lg" p={6}>
@@ -101,4 +118,3 @@ export default function CheckoutMethodPage() {
     </Container>
   );
 }
-
