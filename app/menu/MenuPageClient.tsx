@@ -7,59 +7,54 @@ import {
 } from '@chakra-ui/react';
 import type { MenuItem as BaseMenuItem } from './page';
 
-// 既存型は変更せず、genre をオプションで受ける
+// Supabaseから来る genre をこのファイル内でだけ拡張して受け取る
 type MenuItem = BaseMenuItem & { genre?: string | null };
 
 interface MenuPageClientProps { menuItems: MenuItem[]; }
 
-// 指定トークン → ラベル/並び順
-const TOKEN_TO_CATEGORY: Array<{ token: string; label: string; sort: number }> = [
-  { token: '_Main-dish',              label: '主菜',         sort: 1 },
-  { token: '_Side-dishes-and-salads', label: '副菜・サラダ', sort: 2 },
-  { token: '_Rice-bowls-and-curry',   label: '丼物・カレー', sort: 3 },
-  { token: '_noodles',                label: '麵類',         sort: 4 },
-  { token: '_rice',                   label: 'ごはん',       sort: 5 },
-  { token: '_Soup',                   label: '汁物',         sort: 6 },
-  { token: '_dessert',                label: 'デザート',     sort: 7 },
-];
+// 英語ジャンル → 日本語ラベル（大小/表記ゆれを正規化して対応）
+const GENRE_LABELS: Record<string, string> = {
+  'main-dish': '主菜',
+  'maindish': '主菜',
+  'side-dishes-and-salads': '副菜・サラダ',
+  'rice-bowls-and-curry': '丼物・カレー',
+  'noodles': '麺類',
+  'rice': 'ごはん',
+  'soup': '汁物',
+  'dessert': 'デザート',
+};
 
-// 画像名の保険（genre が無い/一致しない場合）
-const IMAGE_PATTERNS: Array<{ re: RegExp; label: string; sort: number }> = [
-  { re: /Main-dish/i,               label: '主菜',         sort: 1 },
-  { re: /Side-dishes-and-salads/i,  label: '副菜・サラダ', sort: 2 },
-  { re: /Rice-bowls-and-curry/i,    label: '丼物・カレー', sort: 3 },
-  { re: /noodles/i,                 label: '麵類',         sort: 4 },
-  { re: /_rice/i,                   label: 'ごはん',       sort: 5 },
-  { re: /Soup/i,                    label: '汁物',         sort: 6 },
-  { re: /dessert/i,                 label: 'デザート',     sort: 7 },
-];
+// 表示順（ここにないジャンルは最後に回す）
+const GENRE_ORDER = ['主菜', '副菜・サラダ', '丼物・カレー', '麺類', 'ごはん', '汁物', 'デザート', 'その他'];
 
-function pickCategory(item: MenuItem): { label: string; sort: number } {
-  const g = (item.genre ?? '').toString();
-  if (g) {
-    const lower = g.toLowerCase();
-    const hit = TOKEN_TO_CATEGORY.find(({ token }) => lower.includes(token.toLowerCase()));
-    if (hit) return { label: hit.label, sort: hit.sort };
-  }
-  const img = (item.image ?? '').toString();
-  for (const p of IMAGE_PATTERNS) {
-    if (p.re.test(img)) return { label: p.label, sort: p.sort };
-  }
-  return { label: 'その他', sort: 999 };
+function toJapaneseGenreLabel(raw?: string | null): string {
+  if (!raw) return 'その他';
+  const key = raw.toString().trim().toLowerCase().replace(/[_\s]+/g, '-');
+  return GENRE_LABELS[key] ?? raw; // 既に日本語ならそのまま出す
 }
 
 export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
-  // カテゴリ別にグループ化（並び順もここで）
+  // ★ Supabaseの genre だけでカテゴリ分け（画像名からの推定はしない）
   const grouped = useMemo(() => {
-    const map = new Map<string, { sort: number; items: MenuItem[] }>();
+    const map = new Map<string, MenuItem[]>();
     for (const it of menuItems) {
-      const { label, sort } = pickCategory(it);
-      if (!map.has(label)) map.set(label, { sort, items: [] });
-      map.get(label)!.items.push(it);
+      const label = toJapaneseGenreLabel(it.genre) || 'その他';
+      if (!map.has(label)) map.set(label, []);
+      map.get(label)!.push(it);
     }
-    return Array.from(map.entries())
-      .sort((a, b) => a[1].sort - b[1].sort)
-      .map(([category, { sort, items }]) => ({ category, sort, items }));
+
+    // 並び順：GENRE_ORDER → そのほかは五十音順で後ろに
+    const entries = Array.from(map.entries());
+    entries.sort((a, b) => {
+      const ai = GENRE_ORDER.indexOf(a[0]);
+      const bi = GENRE_ORDER.indexOf(b[0]);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return 1;
+      return a[0].localeCompare(b[0], 'ja');
+    });
+
+    return entries.map(([category, items]) => ({ category, items }));
   }, [menuItems]);
 
   return (
@@ -68,7 +63,7 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
         <Box flex="3">
           <Heading as="h1" mb={6}>メニュー</Heading>
 
-          {/* アコーディオンでカテゴリごとに表示 */}
+          {/* アコーディオンで genre ごとに表示（日本語ラベル） */}
           <Accordion allowMultiple defaultIndex={[0]}>
             {grouped.map(({ category, items }) => (
               <AccordionItem key={category} border="1px solid" borderColor="blackAlpha.100" rounded="lg" mb={3}>
@@ -81,7 +76,6 @@ export default function MenuPageClient({ menuItems }: MenuPageClientProps) {
                   </AccordionButton>
                 </h2>
                 <AccordionPanel pt={4} pb={6}>
-                  {/* ★元のGrid描画そのまま（items だけカテゴリ内に差し替え） */}
                   <Grid templateColumns="repeat(auto-fill, minmax(250px, 1fr))" gap={6}>
                     {items.map((item) => (
                       <GridItem key={item.id} borderWidth="1px" borderRadius="lg" overflow="hidden" boxShadow="sm">
