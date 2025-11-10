@@ -42,6 +42,10 @@ export default async function AdminPage() {
         メニュー表示設定
       </Button>
 
+      <Button as={Link} href="/admin/contacts" colorScheme="teal" mt={4} mr={4} mx={10}>
+        お問い合わせ内容確認
+      </Button>
+
       <LogoutButton />
 
       {/* ▼ 
