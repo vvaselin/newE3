@@ -154,26 +154,21 @@ export default function CheckoutPointsPage() {
       return;
     }
 
-    try {
-      const resp = await fetch('/api/orders/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seatNumber }),
+    const { error: orderError } = await supabase
+      .from('orders')
+      .upsert({ 
+        seat_number: seatNumber, 
+        paid_at: new Date().toISOString(),
+        cooking: true // 'cooking' カラムも設定
+      }, { 
+        onConflict: 'seat_number' 
       });
-      const j = await resp.json();
-      if (!resp.ok || j.error) {
-        console.error('order register error', j);
-        toast({ title: '注文登録に失敗しました', description: j?.error ?? 'unknown', status: 'error', duration: 4000 });
-        setIsSubmitting(false);
-        return;
-      }
-      // 登録成功: サーバーが upsert した行（paid_at を含む）を返す
-      const registeredRow = j.row;
-      console.debug('registered order', registeredRow);
-    } catch (err) {
-      console.error('order register fetch error', err);
-      toast({ title: '注文登録に失敗しました', status: 'error', duration: 4000 });
+
+    if (orderError) {
+      console.error('order upsert error', orderError);
+      toast({ title: '注文登録に失敗しました', description: orderError.message, status: 'error', duration: 4000 });
       setIsSubmitting(false);
+      // TODO: ここでポイントを戻す処理(ロールバック)が必要か検討
       return;
     }
 
@@ -314,7 +309,9 @@ export default function CheckoutPointsPage() {
             </AlertDialogBody>
             <AlertDialogFooter>
               <Button ref={cancelRef} onClick={() => setIsOpen(false)}>キャンセル</Button>
-              <Button colorScheme="teal" onClick={onConfirm} ml={3}>実行する</Button>
+              <Button colorScheme="teal" onClick={onConfirm} ml={3}isLoading={isSubmitting}>
+                実行する
+              </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialogOverlay>
