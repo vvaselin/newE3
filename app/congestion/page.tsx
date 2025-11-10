@@ -98,11 +98,11 @@ export default function congestion() {
     const seatedAt = new Date(seat.seated_at);
     const diffMinutes = Math.floor((now.getTime() - seatedAt.getTime()) / (1000 * 60));
     
-    // 1分ごとにstatusを更新（最大3まで）
-    const newStatus = Math.min(Math.floor(diffMinutes / 1) + 1, 3);
+    // 1分ごとにstatusを更新（最大4まで）
+    const newStatus = Math.min(Math.floor(diffMinutes / 1) + 1, 4);
     
     if (newStatus !== seat.status) {
-      if (newStatus === 3) {
+      if (newStatus === 4) {
         deleteSeats(seatId);
         const updatedSeats = await getSeats();
         setSeats(updatedSeats);

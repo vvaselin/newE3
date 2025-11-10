@@ -6,7 +6,7 @@ import QrcodeReader from './QrcodeReader';
 import { createClient } from '@/utils/supabase/client';
 
 // 席数の指定
-const SEATS_NUM = 10;
+const SEATS_NUM = 24;
 
 export interface Seat {
   id: number;
