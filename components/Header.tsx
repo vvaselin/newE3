@@ -122,8 +122,14 @@ export default function Header() {
               <Text fontWeight="bold">茨城大学日立食堂</Text>
             </Link>
           </Box>
-
+         
           <Spacer /> {/* これが要素を左右に押し広げます */}
+
+          <Box mx={6}>
+            <Link href="/contact">
+              <Text fontWeight="bold">お問い合わせ</Text>
+            </Link>
+          </Box>
 
           {/* 右側: 認証ボタンエリア */}
           <Box>
