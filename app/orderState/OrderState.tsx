@@ -6,7 +6,6 @@ import {
   Box,
   Heading,
   Text,
-  Input,
   Button,
   HStack,
   VStack,
@@ -28,12 +27,8 @@ import { useRouter } from "next/navigation";
  */
 
 // ----- 設定 -----
-const MIN_SEAT = 1;
-const MAX_SEAT = 10;
-const COOK_MIN = 3; // 分
-const DONE_MIN = 5; // 分
-const REMOVE_MIN = COOK_MIN + DONE_MIN; // 分
-
+// paid_at からの許容時間（分）。この時間以内の注文のみ表示対象とする
+const DISPLAY_WITHIN_MIN = 60; // 分
 const POLL_INTERVAL_MS = 5 * 1000; // 5秒ポーリング
 const TICK_MS = 1000; // 秒ごとにUI更新
 const ORDERS_CACHE_KEY = "orders_cache_v1";
@@ -41,11 +36,11 @@ const ORDERS_CACHE_KEY = "orders_cache_v1";
 type OrderRow = {
   seat_number: number | string;
   paid_at: string; // ISO
+  cooking?: boolean;
+  id?: string;
 };
 
 // NOTE: per-seat receive buttons removed. A single "自分の注文商品を受け取る" button
-// is shown in the admin area and navigates to `/receive`.
-
 /**
  * 固定表示の「自分の注文商品を受け取る」ボタン
  * 画面を上下左右で4分割したときの右下に表示されるように固定する
@@ -64,7 +59,6 @@ export default function OrderState() {
   const router = useRouter();
 
   // --- state ---
-  const [seatInput, setSeatInput] = useState<string>("");
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [, setTick] = useState<number>(Date.now()); // 秒更新トリガ
@@ -101,36 +95,21 @@ export default function OrderState() {
     }
   }, []);
 
-  const deleteOrder = useCallback(async (seatNumber: number) => {
-    try {
-      const { error } = await supabase.from("orders").delete().eq("seat_number", seatNumber);
-      if (error) console.error("deleteOrder error:", error);
-    } catch (err) {
-      console.error("deleteOrder unexpected:", err);
-    }
-  }, []);
-
-  // ----- 表示分類 -----
+  // ----- 表示分類: paid_at が DISPLAY_WITHIN_MIN 分以内のものを表示対象とする -----
   const categorizeOrders = useCallback((rows: OrderRow[]) => {
-    const cooking: number[] = [];
-    const done: number[] = [];
-    const toRemove: number[] = [];
-
-    const cookMs = COOK_MIN * 60 * 1000;
-    const removeMs = REMOVE_MIN * 60 * 1000;
-
+    const cooking: OrderRow[] = [];
+    const done: OrderRow[] = [];
+    const windowMs = DISPLAY_WITHIN_MIN * 60 * 1000;
     for (const r of rows) {
-      const seatNum = Number(r.seat_number);
-      if (Number.isNaN(seatNum)) continue;
+      if (!r || !r.paid_at) continue;
       const ms = elapsedMs(r.paid_at);
-      if (ms >= removeMs) toRemove.push(seatNum);
-      else if (ms >= cookMs) done.push(seatNum);
-      else cooking.push(seatNum);
+      if (ms <= 0 || ms > windowMs) continue; // 過去すぎる・未来のタイムスタンプは除外
+      if (r.cooking === true) cooking.push(r);
+      else done.push(r);
     }
-
-    cooking.sort((a, b) => a - b);
-    done.sort((a, b) => a - b);
-    return { cooking, done, toRemove };
+    cooking.sort((a, b) => Number(a.seat_number) - Number(b.seat_number));
+    done.sort((a, b) => Number(a.seat_number) - Number(b.seat_number));
+    return { cooking, done };
   }, []);
 
   // ----- 同期とマージ（サーバー優先） -----
@@ -169,51 +148,7 @@ export default function OrderState() {
     }
   }, [fetchOrders]);
 
-  // ----- 登録 (楽観更新 + サーバー登録) -----
-  const registerPayment = useCallback(async (seatNumber: number) => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/orders/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seatNumber }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        console.error("registerPayment api error:", json);
-        toast({ title: "登録に失敗しました", description: json?.error || "unknown error", status: "error", duration: 4000, isClosable: true });
-        return;
-      }
-
-      toast({ title: "決済完了を登録しました", description: `席 ${seatNumber} の決済を登録しました。`, status: "success", duration: 3000, isClosable: true });
-
-      const serverRow = json?.row as OrderRow | undefined;
-      const newOrder = serverRow ?? { seat_number: seatNumber, paid_at: new Date().toISOString() };
-
-      setOrders((prev) => {
-        const filtered = prev.filter((o) => Number(o.seat_number) !== seatNumber);
-        const merged = [...filtered, newOrder].sort((a, b) => Number(a.seat_number) - Number(b.seat_number));
-        try { localStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify(merged)); } catch {}
-        return merged;
-      });
-
-      // 非同期でサーバーから再取得して最終確定
-      (async () => {
-        try {
-          const latest = await fetchOrders();
-          setOrders((prev) => {
-            const merged = mergeLatestAndPrev(latest, prev);
-            try { localStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify(merged)); } catch {}
-            return merged;
-          });
-        } catch (err) {
-          console.error("post-register sync failed:", err);
-        }
-      })();
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchOrders, toast]);
+  // registerPayment removed: payment registration is handled via checkout APIs
 
   // ----- 初回読み込み: localCache -> サーバーマージ -----
   useEffect(() => {
@@ -266,60 +201,34 @@ export default function OrderState() {
     return () => clearInterval(id);
   }, []);
 
-  // 表示データ
-  const { cooking: cookingList, done: doneList } = categorizeOrders(orders);
+  // 表示データ (orders を分類して表示)
+  const { cooking: cookingOrders, done: doneOrders } = categorizeOrders(orders);
 
-  // 登録ボタンハンドラ
-  const handleRegisterClick = async () => {
-    const seatNum = Number(seatInput);
-    if (!Number.isInteger(seatNum) || seatNum < MIN_SEAT || seatNum > MAX_SEAT) {
-      toast({ title: "無効な席番号です", description: `席番号は ${MIN_SEAT} ～ ${MAX_SEAT} の整数で入力してください。`, status: "warning", duration: 3000, isClosable: true });
-      return;
-    }
-    await registerPayment(seatNum);
-    setSeatInput("");
-  };
+  // admin registration handlers removed
 
   return (
     <Box p={6}>
-      {/* 管理者操作領域 */}
-      <HStack spacing={3} mb={6}>
-        <Text>席番号：</Text>
-        <Input value={seatInput} onChange={(e) => setSeatInput(e.target.value)} placeholder={`1〜${MAX_SEAT}`} type="number" width="120px" />
-        <Button colorScheme="green" onClick={handleRegisterClick} isLoading={loading}>決済完了</Button>
-
-        <Button onClick={async () => {
-          if (!confirm("全ての注文を削除しますか？")) return;
-          const rows = await fetchOrders();
-          await Promise.all(rows.map((r) => deleteOrder(Number(r.seat_number))));
-          const latest = await fetchOrders();
-          setOrders(latest);
-          try { localStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify(latest)); } catch {}
-          toast({ title: "全削除しました", status: "info", duration: 2000 });
-        }}>全削除（debug）</Button>
-      </HStack>
+      {/* 管理者操作は `app/admin` 以下で行います。OrderState は表示専用です。 */}
 
       {/* 利用者向け: 受け取りボタンは画面右下に固定表示する（MyReceiveButton） */}
 
-      {/* 表示領域 */}
-      <Box border="1px solid" borderColor="gray.200" borderRadius="md" p={4}>
-        <SimpleGrid columns={2} spacing={4} alignItems="start">
+      {/* 表示領域：orders テーブルの内容に従って調理中 / 調理済みに振り分けて表示 */}
+      <Box border="2px solid" borderColor="gray.300" borderRadius="md" p={6} bg="white" boxShadow="sm">
+        <SimpleGrid columns={2} spacing={6} alignItems="start">
           {/* 調理中 */}
-          <Box borderWidth="1px" borderColor="gray.200" borderRadius="md" p={3}>
+          <Box borderWidth="1px" borderColor="gray.200" borderRadius="md" p={3} bg="yellow.50">
             <VStack align="stretch">
-              <Heading size="md">調理中 （{COOK_MIN}分以内）</Heading>
+              <Heading size="md" width="100%" textAlign="center">調理中 ({cookingOrders.length}件)</Heading>
               <Divider />
-              {cookingList.length === 0 ? (
-                <Text color="gray.500">現在、調理中の注文はありません。</Text>
+              {cookingOrders.length === 0 ? (
+                <Text color="gray.500">現在、調理中の商品はありません。</Text>
               ) : (
                 <HStack wrap="wrap" spacing={2} mt={2}>
-                  {cookingList.map((s) => {
-                    const order = orders.find((o) => Number(o.seat_number) === s);
+                  {cookingOrders.map((order) => {
+                    const seat = Number(order.seat_number);
                     return (
-                      <Box key={s} px={3} py={2} borderRadius="md" border="1px solid" borderColor="gray.300" backgroundColor="yellow.100">
-                        <Text fontWeight="bold">席 {s}</Text>
-                        <Text fontSize="xs" color="gray.600">{order ? `${formatElapsed(order.paid_at)} 経過` : "-"}</Text>
-                        {/* per-seat receive buttons removed - use the single '自分の注文商品を受け取る' ボタン above */}
+                      <Box key={order.id ?? seat} px={3} py={2} borderRadius="md" border="1px solid" borderColor="gray.300" backgroundColor="yellow.100">
+                        <Text fontWeight="bold">席 {seat}</Text>
                       </Box>
                     );
                   })}
@@ -329,21 +238,21 @@ export default function OrderState() {
           </Box>
 
           {/* 調理済み */}
-          <Box borderWidth="1px" borderColor="gray.200" borderRadius="md" p={3}>
+          <Box borderWidth="1px" borderColor="gray.200" borderRadius="md" p={3} bg="green.50" position="relative">
+            {/* 左側の区切り線 */}
+            <Box position="absolute" left={0} top={0} bottom={0} width="2px" bg="gray.300" />
             <VStack align="stretch">
-              <Heading size="md">調理済み （{DONE_MIN}分表示）</Heading>
+              <Heading size="md" width="100%" textAlign="center">調理済み ({doneOrders.length}件)</Heading>
               <Divider />
-              {doneList.length === 0 ? (
-                <Text color="gray.500">現在、調理済みの注文はありません。</Text>
+              {doneOrders.length === 0 ? (
+                <Text color="gray.500">現在、調理済みの商品はありません。</Text>
               ) : (
                 <HStack wrap="wrap" spacing={2} mt={2}>
-                  {doneList.map((s) => {
-                    const order = orders.find((o) => Number(o.seat_number) === s);
+                  {doneOrders.map((order) => {
+                    const seat = Number(order.seat_number);
                     return (
-                      <Box key={s} px={3} py={2} borderRadius="md" border="1px solid" borderColor="gray.300" backgroundColor="green.100">
-                        <Text fontWeight="bold">席 {s}</Text>
-                        <Text fontSize="xs" color="gray.600">{order ? `${formatElapsed(order.paid_at)} 経過` : "-"}</Text>
-                        {/* per-seat receive buttons removed - use the single '自分の注文商品を受け取る' ボタン above */}
+                      <Box key={order.id ?? seat} px={3} py={2} borderRadius="md" border="1px solid" borderColor="gray.300" backgroundColor="green.100">
+                        <Text fontWeight="bold">席 {seat}</Text>
                       </Box>
                     );
                   })}
@@ -352,9 +261,6 @@ export default function OrderState() {
             </VStack>
           </Box>
         </SimpleGrid>
-
-        {/* 中央の区切り線 */}
-        <Box position="relative" aria-hidden _after={{ content: '""', position: "absolute", left: "50%", top: 8, bottom: 8, width: "1px", background: "gray.200", transform: "translateX(-50%)" }} />
       </Box>
 
       {/* ページ埋め込み: 調理完了表示の下（ページ右下寄せ）に配置 */}
